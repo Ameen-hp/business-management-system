@@ -1,0 +1,256 @@
+<div class="page-container">
+  <div class="page-header flex-wrap gap-4">
+    <div>
+      <h1 class="page-title">Invoices</h1>
+      <p class="page-description">
+        View customer invoices, outstanding balances, and payment status.
+      </p>
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <div class="stats-grid mb-6">
+    <div class="app-card">
+      <p class="text-sm text-slate-500">Total Invoiced</p>
+      <h2 class="mt-2 text-2xl font-bold text-slate-800">
+        Rs. {{ totalInvoiced | number: '1.0-2' }}
+      </h2>
+    </div>
+
+    <div class="app-card">
+      <p class="text-sm text-slate-500">Outstanding Balance</p>
+      <h2 class="mt-2 text-2xl font-bold text-amber-600">
+        Rs. {{ totalOutstanding | number: '1.0-2' }}
+      </h2>
+    </div>
+
+    <div class="app-card">
+      <p class="text-sm text-slate-500">Paid Invoices</p>
+      <h2 class="mt-2 text-2xl font-bold text-green-600">
+        {{ paidInvoicesCount }}
+      </h2>
+    </div>
+
+    <div class="app-card">
+      <p class="text-sm text-slate-500">Overdue Invoices</p>
+      <h2 class="mt-2 text-2xl font-bold text-red-600">
+        {{ overdueInvoicesCount }}
+      </h2>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="app-card mb-6">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div>
+        <label class="form-label" for="invoiceSearch">Search invoices</label>
+        <input
+          id="invoiceSearch"
+          class="form-input"
+          name="invoiceSearch"
+          [(ngModel)]="searchTerm"
+          placeholder="Invoice, order, or customer..."
+        />
+      </div>
+
+      <div>
+        <label class="form-label" for="invoiceStatus">Invoice status</label>
+        <select
+          id="invoiceStatus"
+          class="form-input"
+          name="invoiceStatus"
+          [(ngModel)]="statusFilter"
+        >
+          <option value="All">All Statuses</option>
+          <option value="Issued">Issued</option>
+          <option value="Partially Paid">Partially Paid</option>
+          <option value="Paid">Paid</option>
+          <option value="Overdue">Overdue</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invoice table -->
+  <div class="app-card">
+    <div class="mb-4">
+      <h2 class="text-lg font-semibold text-slate-800">Invoice Register</h2>
+      <p class="text-sm text-slate-500">{{ filteredInvoices.length }} invoice(s) found</p>
+    </div>
+
+    <div class="table-container">
+      <table class="app-table">
+        <thead>
+          <tr>
+            <th>Invoice</th>
+            <th>Customer</th>
+            <th>Invoice Date</th>
+            <th>Due Date</th>
+            <th>Total</th>
+            <th>Balance Due</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          @for (invoice of filteredInvoices; track invoice.id) {
+            <tr>
+              <td>
+                <p class="font-semibold text-blue-700">
+                  {{ invoice.invoiceNumber }}
+                </p>
+                <p class="mt-1 text-xs text-slate-500">
+                  {{ invoice.orderNumber }}
+                </p>
+              </td>
+
+              <td>
+                <p class="font-medium text-slate-800">{{ invoice.customerName }}</p>
+                <p class="mt-1 text-xs text-slate-500">{{ invoice.customerEmail }}</p>
+              </td>
+
+              <td class="whitespace-nowrap">
+                {{ invoice.invoiceDate | date: 'dd MMM yyyy' }}
+              </td>
+
+              <td class="whitespace-nowrap">
+                {{ invoice.dueDate | date: 'dd MMM yyyy' }}
+              </td>
+
+              <td class="whitespace-nowrap font-medium">
+                Rs. {{ getInvoiceTotal(invoice) | number: '1.0-2' }}
+              </td>
+
+              <td class="whitespace-nowrap font-medium">
+                Rs. {{ getBalance(invoice) | number: '1.0-2' }}
+              </td>
+
+              <td>
+                <span
+                  class="whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium"
+                  [class]="getStatusClass(invoice.status)"
+                >
+                  {{ invoice.status }}
+                </span>
+              </td>
+
+              <td>
+                <button
+                  class="btn-secondary whitespace-nowrap"
+                  type="button"
+                  (click)="viewInvoice(invoice)"
+                >
+                  View Invoice
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="8" class="py-8 text-center text-slate-500">No invoices found.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Invoice details -->
+  @if (selectedInvoice; as invoice) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4"
+    >
+      <div class="my-auto w-full max-w-3xl rounded-xl bg-white p-6 shadow-xl">
+        <div class="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-bold text-slate-800">Invoice Details</h2>
+            <p class="mt-1 text-sm text-slate-500">{{ invoice.invoiceNumber }}</p>
+          </div>
+
+          <button class="btn-secondary" type="button" (click)="closeInvoice()">Close</button>
+        </div>
+
+        <div id="invoice-print-area" class="space-y-5">
+          <div class="flex flex-wrap justify-between gap-4 border-b pb-5">
+            <div>
+              <h3 class="text-xl font-bold text-slate-900">Business Management System</h3>
+              <p class="mt-1 text-sm text-slate-500">Customer Invoice</p>
+            </div>
+
+            <div class="text-right">
+              <p class="font-bold">{{ invoice.invoiceNumber }}</p>
+              <p class="text-sm text-slate-500">Order: {{ invoice.orderNumber }}</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <p class="text-xs uppercase text-slate-500">Bill To</p>
+              <p class="mt-1 font-semibold">{{ invoice.customerName }}</p>
+              <p class="text-sm text-slate-500">{{ invoice.customerEmail }}</p>
+            </div>
+
+            <div>
+              <p class="text-xs uppercase text-slate-500">Invoice Date</p>
+              <p class="mt-1">{{ invoice.invoiceDate | date: 'dd MMM yyyy' }}</p>
+              <p class="mt-2 text-xs uppercase text-slate-500">Due Date</p>
+              <p class="mt-1">{{ invoice.dueDate | date: 'dd MMM yyyy' }}</p>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="app-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>SKU</th>
+                  <th>Quantity</th>
+                  <th>Unit Price</th>
+                  <th>Subtotal</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                @for (item of invoice.items; track item.sku) {
+                  <tr>
+                    <td>{{ item.productName }}</td>
+                    <td>{{ item.sku }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>Rs. {{ item.unitPrice | number: '1.0-2' }}</td>
+                    <td>Rs. {{ item.quantity * item.unitPrice | number: '1.0-2' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <div class="ml-auto w-full space-y-3 md:w-72">
+            <div class="flex justify-between gap-4">
+              <span class="text-slate-500">Invoice Total</span>
+              <span class="font-semibold">
+                Rs. {{ getInvoiceTotal(invoice) | number: '1.0-2' }}
+              </span>
+            </div>
+
+            <div class="flex justify-between gap-4">
+              <span class="text-slate-500">Amount Paid</span>
+              <span> Rs. {{ invoice.amountPaid | number: '1.0-2' }} </span>
+            </div>
+
+            <div class="flex justify-between gap-4 border-t pt-3">
+              <span class="font-semibold">Balance Due</span>
+              <span class="text-lg font-bold text-blue-700">
+                Rs. {{ getBalance(invoice) | number: '1.0-2' }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 flex flex-wrap justify-end gap-3 print:hidden">
+          <button class="btn-secondary" type="button" (click)="closeInvoice()">Close</button>
+          <button class="btn-primary" type="button" (click)="printInvoice()">Print Invoice</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

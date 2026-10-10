@@ -1,0 +1,252 @@
+<div class="page-container">
+  <!-- Page heading -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Customers</h1>
+      <p class="page-description">Manage customer accounts and their access to your store.</p>
+    </div>
+
+    <button type="button" class="btn-primary" (click)="openCreateForm()">+ Create Customer</button>
+  </div>
+
+  <!-- Summary cards -->
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div class="app-card">
+      <p class="text-sm font-medium text-slate-500">Total Customers</p>
+      <p class="mt-2 text-3xl font-bold text-slate-800">
+        {{ customers.length }}
+      </p>
+    </div>
+
+    <div class="app-card">
+      <p class="text-sm font-medium text-slate-500">Active Customers</p>
+      <p class="mt-2 text-3xl font-bold text-green-600">
+        {{ activeCount }}
+      </p>
+    </div>
+
+    <div class="app-card">
+      <p class="text-sm font-medium text-slate-500">Inactive Customers</p>
+      <p class="mt-2 text-3xl font-bold text-red-600">
+        {{ inactiveCount }}
+      </p>
+    </div>
+  </div>
+
+  <!-- Customer table -->
+  <section class="app-card">
+    <div class="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-800">All Customers</h2>
+        <p class="mt-1 text-sm text-slate-500">Search and manage your customer accounts.</p>
+      </div>
+
+      <div class="w-full sm:max-w-sm">
+        <input
+          type="search"
+          class="form-input"
+          placeholder="Search name, email or phone..."
+          [(ngModel)]="searchTerm"
+          aria-label="Search customers"
+        />
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table class="app-table">
+        <thead>
+          <tr>
+            <th>Customer</th>
+            <th>Phone</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          @for (customer of filteredCustomers; track customer.id) {
+            <tr>
+              <td>
+                <div class="flex items-center gap-3">
+                  <div
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 font-semibold text-blue-700"
+                  >
+                    {{ customer.name.charAt(0).toUpperCase() }}
+                  </div>
+
+                  <div>
+                    <p class="font-medium text-slate-800">
+                      {{ customer.name }}
+                    </p>
+                    <p class="mt-1 text-xs text-slate-500">
+                      {{ customer.email }}
+                    </p>
+                  </div>
+                </div>
+              </td>
+
+              <td>{{ customer.phone }}</td>
+
+              <td>
+                <span
+                  class="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+                  [class.bg-green-100]="customer.status === 'Active'"
+                  [class.text-green-700]="customer.status === 'Active'"
+                  [class.bg-red-100]="customer.status === 'Inactive'"
+                  [class.text-red-700]="customer.status === 'Inactive'"
+                >
+                  {{ customer.status }}
+                </span>
+              </td>
+
+              <td>
+                <div class="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    (click)="openEditForm(customer)"
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    type="button"
+                    class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    (click)="toggleStatus(customer)"
+                  >
+                    {{ customer.status === 'Active' ? 'Deactivate' : 'Activate' }}
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="4" class="px-5 py-10 text-center text-slate-500">
+                No customers found. Try another search or create a customer.
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <p class="mt-4 text-sm text-slate-500">
+      Showing {{ filteredCustomers.length }} of {{ customers.length }} customers
+    </p>
+  </section>
+</div>
+
+<!-- Create/Edit modal -->
+@if (showForm) {
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4"
+    (click)="closeForm()"
+  >
+    <section
+      class="my-auto w-full max-w-xl rounded-2xl bg-white shadow-xl"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="customer-form-title"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="flex items-start justify-between border-b border-slate-200 p-6">
+        <div>
+          <h2 id="customer-form-title" class="text-xl font-bold text-slate-800">
+            {{ editingId !== null ? 'Edit Customer' : 'Create Customer' }}
+          </h2>
+
+          <p class="mt-1 text-sm text-slate-500">Enter the customer's account information.</p>
+        </div>
+
+        <button
+          type="button"
+          class="rounded-lg px-3 py-1 text-xl text-slate-500 hover:bg-slate-100"
+          aria-label="Close form"
+          (click)="closeForm()"
+        >
+          &times;
+        </button>
+      </div>
+
+      <form #customerForm="ngForm" (ngSubmit)="saveCustomer()" class="space-y-5 p-6">
+        <div>
+          <label for="customerName" class="form-label"> Full Name * </label>
+          <input
+            id="customerName"
+            name="name"
+            type="text"
+            class="form-input"
+            placeholder="Enter customer's full name"
+            [(ngModel)]="form.name"
+            required
+            maxlength="100"
+            autocomplete="name"
+          />
+        </div>
+
+        <div>
+          <label for="customerEmail" class="form-label"> Email / Login ID * </label>
+          <input
+            id="customerEmail"
+            name="email"
+            type="email"
+            class="form-input"
+            placeholder="customer@example.com"
+            [(ngModel)]="form.email"
+            required
+            email
+            maxlength="254"
+            autocomplete="email"
+          />
+          <p class="mt-1 text-xs text-slate-500">The customer will use this email to log in.</p>
+        </div>
+
+        <div>
+          <label for="customerPhone" class="form-label"> Phone Number * </label>
+          <input
+            id="customerPhone"
+            name="phone"
+            type="tel"
+            class="form-input"
+            placeholder="Enter phone number"
+            [(ngModel)]="form.phone"
+            required
+            maxlength="20"
+            autocomplete="tel"
+          />
+        </div>
+
+        @if (editingId === null) {
+          <div>
+            <label for="temporaryPassword" class="form-label"> Temporary Password * </label>
+            <input
+              id="temporaryPassword"
+              name="temporaryPassword"
+              type="password"
+              class="form-input"
+              placeholder="At least 8 characters"
+              [(ngModel)]="form.temporaryPassword"
+              required
+              minlength="8"
+              autocomplete="new-password"
+            />
+            <p class="mt-1 text-xs text-slate-500">
+              In the real application, the backend must securely hash the password and should
+              require the customer to change it.
+            </p>
+          </div>
+        }
+
+        <div
+          class="flex flex-col-reverse justify-end gap-3 border-t border-slate-200 pt-5 sm:flex-row"
+        >
+          <button type="button" class="btn-secondary" (click)="closeForm()">Cancel</button>
+
+          <button type="submit" class="btn-primary" [disabled]="customerForm.invalid">
+            {{ editingId !== null ? 'Save Changes' : 'Create Customer' }}
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+}

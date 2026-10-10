@@ -1,0 +1,15 @@
+app-admin-sidebar {
+  display: block;
+  width: 100%;
+  flex-shrink: 0;
+
+  @media (min-width: 768px) {
+    width: 16rem;
+    align-self: stretch;
+  }
+
+  @media (max-width: 767px) {
+    display: flex;
+    justify-content: center;
+  }
+}

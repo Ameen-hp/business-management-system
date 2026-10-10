@@ -1,0 +1,251 @@
+<div class="page-container">
+  <div class="page-header flex-wrap gap-4">
+    <div>
+      <h1 class="page-title">Products</h1>
+      <p class="page-description">Create, update, and manage your business products.</p>
+    </div>
+
+    <button class="btn-primary" type="button" (click)="openCreateForm()">+ Add Product</button>
+  </div>
+
+  <!-- Summary cards -->
+  <div class="stats-grid mb-6">
+    <div class="app-card">
+      <p class="text-sm text-slate-500">Total Products</p>
+      <h2 class="mt-2 text-2xl font-bold text-slate-800">
+        {{ products.length }}
+      </h2>
+    </div>
+
+    <div class="app-card">
+      <p class="text-sm text-slate-500">Active Products</p>
+      <h2 class="mt-2 text-2xl font-bold text-green-600">
+        {{ activeCount }}
+      </h2>
+    </div>
+
+    <div class="app-card">
+      <p class="text-sm text-slate-500">Inactive Products</p>
+      <h2 class="mt-2 text-2xl font-bold text-slate-500">
+        {{ inactiveCount }}
+      </h2>
+    </div>
+
+    <div class="app-card">
+      <p class="text-sm text-slate-500">Combined Listed Price</p>
+      <h2 class="mt-2 text-2xl font-bold text-blue-600">
+        Rs. {{ totalProductValue | number: '1.0-2' }}
+      </h2>
+      <p class="mt-1 text-xs text-slate-400">Sum of product prices, not inventory value</p>
+    </div>
+  </div>
+
+  <!-- Search and filters -->
+  <div class="app-card mb-6">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div>
+        <label class="form-label" for="productSearch">Search products</label>
+        <input
+          id="productSearch"
+          class="form-input"
+          type="text"
+          [(ngModel)]="searchTerm"
+          placeholder="Search name, SKU, category..."
+        />
+      </div>
+
+      <div>
+        <label class="form-label" for="categoryFilter">Category</label>
+        <select id="categoryFilter" class="form-input" [(ngModel)]="categoryFilter">
+          <option value="All">All Categories</option>
+          @for (category of categories; track category) {
+            <option [value]="category">{{ category }}</option>
+          }
+        </select>
+      </div>
+
+      <div>
+        <label class="form-label" for="statusFilter">Status</label>
+        <select id="statusFilter" class="form-input" [(ngModel)]="statusFilter">
+          <option value="All">All Statuses</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Products table -->
+  <div class="app-card">
+    <div class="mb-4">
+      <h2 class="text-lg font-semibold text-slate-800">Product List</h2>
+      <p class="text-sm text-slate-500">{{ filteredProducts.length }} product(s) found</p>
+    </div>
+
+    <div class="table-container">
+      <table class="app-table">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>SKU</th>
+            <th>Category</th>
+            <th>Price</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          @for (product of filteredProducts; track product.id) {
+            <tr>
+              <td>
+                <p class="font-medium text-slate-800">{{ product.name }}</p>
+                <p class="mt-1 text-xs text-slate-500">
+                  {{ product.description || 'No description' }}
+                </p>
+              </td>
+              <td>{{ product.sku }}</td>
+              <td>{{ product.category }}</td>
+              <td class="font-medium">Rs. {{ product.price | number: '1.0-2' }}</td>
+              <td>
+                <span
+                  class="rounded-full px-3 py-1 text-xs font-medium"
+                  [class.bg-green-100]="product.status === 'Active'"
+                  [class.text-green-700]="product.status === 'Active'"
+                  [class.bg-slate-100]="product.status === 'Inactive'"
+                  [class.text-slate-600]="product.status === 'Inactive'"
+                >
+                  {{ product.status }}
+                </span>
+              </td>
+              <td>
+                <div class="flex flex-wrap gap-2">
+                  <button class="btn-secondary" type="button" (click)="openEditForm(product)">
+                    Edit
+                  </button>
+
+                  <button class="btn-secondary" type="button" (click)="toggleStatus(product)">
+                    {{ product.status === 'Active' ? 'Deactivate' : 'Activate' }}
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6" class="py-8 text-center text-slate-500">
+                No products found. Try changing your search or filters.
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Create / Edit modal -->
+  @if (showForm) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4"
+    >
+      <div class="my-auto w-full max-w-xl rounded-xl bg-white p-6 shadow-xl">
+        <div class="mb-6 flex items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-bold text-slate-800">
+              {{ editingId === null ? 'Add Product' : 'Edit Product' }}
+            </h2>
+            <p class="mt-1 text-sm text-slate-500">Enter the product details below.</p>
+          </div>
+
+          <button
+            class="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-100"
+            type="button"
+            (click)="closeForm()"
+            aria-label="Close form"
+          >
+            ✕
+          </button>
+        </div>
+
+        <form (ngSubmit)="saveProduct()">
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label class="form-label" for="productName">Product Name *</label>
+              <input
+                id="productName"
+                class="form-input"
+                name="name"
+                [(ngModel)]="form.name"
+                required
+                maxlength="100"
+                placeholder="e.g. Wireless Mouse"
+              />
+            </div>
+
+            <div>
+              <label class="form-label" for="productSku">SKU *</label>
+              <input
+                id="productSku"
+                class="form-input"
+                name="sku"
+                [(ngModel)]="form.sku"
+                required
+                maxlength="50"
+                placeholder="e.g. ELE-003"
+              />
+            </div>
+
+            <div>
+              <label class="form-label" for="productCategory">Category *</label>
+              <select
+                id="productCategory"
+                class="form-input"
+                name="category"
+                [(ngModel)]="form.category"
+                required
+              >
+                <option value="">Select Category</option>
+                @for (category of categories; track category) {
+                  <option [value]="category">{{ category }}</option>
+                }
+              </select>
+            </div>
+
+            <div>
+              <label class="form-label" for="productPrice">Price (Rs.) *</label>
+              <input
+                id="productPrice"
+                class="form-input"
+                type="number"
+                name="price"
+                [(ngModel)]="form.price"
+                required
+                min="0.01"
+                step="0.01"
+              />
+            </div>
+
+            <div class="md:col-span-2">
+              <label class="form-label" for="productDescription"> Description </label>
+              <textarea
+                id="productDescription"
+                class="form-input"
+                name="description"
+                [(ngModel)]="form.description"
+                rows="3"
+                maxlength="500"
+                placeholder="Describe the product..."
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="mt-6 flex justify-end gap-3">
+            <button class="btn-secondary" type="button" (click)="closeForm()">Cancel</button>
+            <button class="btn-primary" type="submit">
+              {{ editingId === null ? 'Save Product' : 'Update Product' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+</div>

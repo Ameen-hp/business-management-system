@@ -1,0 +1,292 @@
+<div class="page-container">
+  <div class="page-header flex-wrap gap-4">
+    <div>
+      <h1 class="page-title">Payments</h1>
+      <p class="page-description">
+        Record payments, verify receipts, and track customer payment history.
+      </p>
+    </div>
+
+    <button class="btn-primary" type="button" (click)="openForm()">+ Record Payment</button>
+  </div>
+
+  <!-- Summary -->
+  <div class="stats-grid mb-6">
+    <div class="app-card">
+      <p class="text-sm text-slate-500">Verified Amount</p>
+      <h2 class="mt-2 text-2xl font-bold text-green-600">
+        Rs. {{ totalVerifiedPayments | number: '1.0-2' }}
+      </h2>
+    </div>
+
+    <div class="app-card">
+      <p class="text-sm text-slate-500">Pending Verification</p>
+      <h2 class="mt-2 text-2xl font-bold text-amber-600">
+        {{ pendingPaymentsCount }}
+      </h2>
+    </div>
+
+    <div class="app-card">
+      <p class="text-sm text-slate-500">Verified Records</p>
+      <h2 class="mt-2 text-2xl font-bold text-green-600">
+        {{ verifiedPaymentsCount }}
+      </h2>
+    </div>
+
+    <div class="app-card">
+      <p class="text-sm text-slate-500">Rejected Records</p>
+      <h2 class="mt-2 text-2xl font-bold text-red-600">
+        {{ rejectedPaymentsCount }}
+      </h2>
+    </div>
+  </div>
+
+  <!-- Search and filters -->
+  <div class="app-card mb-6">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div>
+        <label class="form-label" for="paymentSearch"> Search payments </label>
+        <input
+          id="paymentSearch"
+          class="form-input"
+          name="paymentSearch"
+          [(ngModel)]="searchTerm"
+          placeholder="Payment, invoice, customer, reference..."
+        />
+      </div>
+
+      <div>
+        <label class="form-label" for="paymentStatus"> Payment status </label>
+        <select
+          id="paymentStatus"
+          class="form-input"
+          name="paymentStatus"
+          [(ngModel)]="statusFilter"
+        >
+          <option value="All">All Statuses</option>
+          <option value="Pending Verification">Pending Verification</option>
+          <option value="Verified">Verified</option>
+          <option value="Rejected">Rejected</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payments table -->
+  <div class="app-card">
+    <div class="mb-4">
+      <h2 class="text-lg font-semibold text-slate-800">Payment Register</h2>
+      <p class="text-sm text-slate-500">{{ filteredPayments.length }} payment record(s) found</p>
+    </div>
+
+    <div class="table-container">
+      <table class="app-table">
+        <thead>
+          <tr>
+            <th>Payment</th>
+            <th>Customer / Invoice</th>
+            <th>Date</th>
+            <th>Method</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          @for (payment of filteredPayments; track payment.id) {
+            <tr>
+              <td>
+                <p class="font-semibold text-blue-700">
+                  {{ payment.reference }}
+                </p>
+                @if (payment.transactionReference) {
+                  <p class="mt-1 text-xs text-slate-500">Ref: {{ payment.transactionReference }}</p>
+                }
+              </td>
+
+              <td>
+                <p class="font-medium text-slate-800">
+                  {{ payment.customerName }}
+                </p>
+                <p class="mt-1 text-xs text-slate-500">
+                  {{ payment.invoiceNumber }} · {{ payment.orderNumber }}
+                </p>
+              </td>
+
+              <td class="whitespace-nowrap">
+                {{ payment.paymentDate | date: 'dd MMM yyyy' }}
+              </td>
+
+              <td>{{ payment.method }}</td>
+
+              <td class="whitespace-nowrap font-semibold">
+                Rs. {{ payment.amount | number: '1.0-2' }}
+              </td>
+
+              <td>
+                <span
+                  class="whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium"
+                  [class]="getStatusClass(payment.status)"
+                >
+                  {{ payment.status }}
+                </span>
+              </td>
+
+              <td>
+                @if (payment.status === 'Pending Verification') {
+                  <div class="flex flex-wrap gap-2">
+                    <button class="btn-primary" type="button" (click)="verifyPayment(payment)">
+                      Verify
+                    </button>
+                    <button class="btn-secondary" type="button" (click)="rejectPayment(payment)">
+                      Reject
+                    </button>
+                  </div>
+                } @else {
+                  <span class="text-sm text-slate-400">No actions</span>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="7" class="py-8 text-center text-slate-500">No payments found.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Record payment modal -->
+  @if (showForm) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4"
+    >
+      <div class="my-auto w-full max-w-xl rounded-xl bg-white p-6 shadow-xl">
+        <div class="mb-6 flex items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-bold text-slate-800">Record Payment</h2>
+            <p class="mt-1 text-sm text-slate-500">
+              New payments will remain pending until verified.
+            </p>
+          </div>
+
+          <button class="btn-secondary" type="button" (click)="closeForm()" aria-label="Close form">
+            ✕
+          </button>
+        </div>
+
+        <form (ngSubmit)="recordPayment()">
+          <div class="space-y-4">
+            <div>
+              <label class="form-label" for="invoiceNumber">Invoice *</label>
+              <select
+                id="invoiceNumber"
+                class="form-input"
+                name="invoiceNumber"
+                [(ngModel)]="form.invoiceNumber"
+                required
+              >
+                <option value="">Select Invoice</option>
+                @for (invoice of invoiceBalances; track invoice.invoiceNumber) {
+                  @if (invoice.total > invoice.amountPaid) {
+                    <option [value]="invoice.invoiceNumber">
+                      {{ invoice.invoiceNumber }} — {{ invoice.customerName }} (Balance: Rs.
+                      {{ invoice.total - invoice.amountPaid }})
+                    </option>
+                  }
+                }
+              </select>
+            </div>
+
+            @if (selectedInvoice) {
+              <div class="rounded-lg bg-slate-50 p-4">
+                <p class="text-sm text-slate-500">Customer</p>
+                <p class="font-semibold text-slate-800">
+                  {{ selectedInvoice.customerName }}
+                </p>
+                <p class="mt-3 text-sm text-slate-500">Remaining balance</p>
+                <p class="text-lg font-bold text-blue-700">
+                  Rs. {{ remainingBalance | number: '1.0-2' }}
+                </p>
+              </div>
+            }
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label class="form-label" for="paymentAmount">Amount (Rs.) *</label>
+                <input
+                  id="paymentAmount"
+                  class="form-input"
+                  type="number"
+                  name="amount"
+                  [(ngModel)]="form.amount"
+                  min="0.01"
+                  step="0.01"
+                  required
+                />
+              </div>
+
+              <div>
+                <label class="form-label" for="paymentDate">Payment Date *</label>
+                <input
+                  id="paymentDate"
+                  class="form-input"
+                  type="date"
+                  name="paymentDate"
+                  [(ngModel)]="form.paymentDate"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label class="form-label" for="paymentMethod">Payment Method *</label>
+              <select id="paymentMethod" class="form-input" name="method" [(ngModel)]="form.method">
+                <option value="Bank Transfer">Bank Transfer</option>
+                <option value="Cash">Cash</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="form-label" for="transactionReference">
+                Transaction / Receipt Reference
+                @if (form.method === 'Bank Transfer') {
+                  *
+                }
+              </label>
+              <input
+                id="transactionReference"
+                class="form-input"
+                name="transactionReference"
+                [(ngModel)]="form.transactionReference"
+                placeholder="Bank transaction or receipt number"
+              />
+            </div>
+
+            <div>
+              <label class="form-label" for="paymentNote">Notes</label>
+              <textarea
+                id="paymentNote"
+                class="form-input"
+                name="note"
+                [(ngModel)]="form.note"
+                rows="3"
+                maxlength="300"
+                placeholder="Optional payment details"
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="mt-6 flex justify-end gap-3">
+            <button class="btn-secondary" type="button" (click)="closeForm()">Cancel</button>
+
+            <button class="btn-primary" type="submit">Save Pending Payment</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,465 @@
+<div class="page-container space-y-6">
+  <!-- Page heading -->
+  <div class="page-header flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="page-title">Shipments</h1>
+      <p class="page-description">
+        Manage deliveries, couriers, tracking numbers and shipment statuses.
+      </p>
+    </div>
+
+    <button type="button" class="btn-primary" (click)="openCreateForm()">+ Create Shipment</button>
+  </div>
+
+  <!-- Summary cards -->
+  <div class="stats-grid">
+    <div class="app-card">
+      <p class="text-sm text-slate-500">Total Shipments</p>
+      <h2 class="mt-2 text-2xl font-bold text-slate-900">
+        {{ totalShipments }}
+      </h2>
+      <p class="mt-1 text-xs text-slate-500">All recorded shipments</p>
+    </div>
+
+    <div class="app-card">
+      <p class="text-sm text-slate-500">Preparing</p>
+      <h2 class="mt-2 text-2xl font-bold text-amber-600">
+        {{ preparingCount }}
+      </h2>
+      <p class="mt-1 text-xs text-slate-500">Awaiting dispatch</p>
+    </div>
+
+    <div class="app-card">
+      <p class="text-sm text-slate-500">In Delivery</p>
+      <h2 class="mt-2 text-2xl font-bold text-blue-600">
+        {{ inTransitCount }}
+      </h2>
+      <p class="mt-1 text-xs text-slate-500">Moving toward customers</p>
+    </div>
+
+    <div class="app-card">
+      <p class="text-sm text-slate-500">Delivered</p>
+      <h2 class="mt-2 text-2xl font-bold text-emerald-600">
+        {{ deliveredCount }}
+      </h2>
+      <p class="mt-1 text-xs text-slate-500">Successfully delivered</p>
+    </div>
+  </div>
+
+  <!-- Shipment list -->
+  <section class="app-card space-y-4">
+    <div>
+      <h2 class="text-lg font-semibold text-slate-900">Shipment Records</h2>
+      <p class="mt-1 text-sm text-slate-500">
+        Search and manage shipments linked to customer orders.
+      </p>
+    </div>
+
+    <div class="flex flex-col gap-3 md:flex-row">
+      <div class="flex-1">
+        <label for="shipment-search" class="form-label">Search shipments</label>
+        <input
+          id="shipment-search"
+          type="text"
+          class="form-input"
+          placeholder="Shipment ID, order ID, customer or tracking number"
+          [(ngModel)]="searchTerm"
+        />
+      </div>
+
+      <div class="w-full md:w-64">
+        <label for="shipment-status" class="form-label">Shipment status</label>
+        <select id="shipment-status" class="form-input" [(ngModel)]="statusFilter">
+          <option value="All">All statuses</option>
+          @for (status of shipmentStatuses; track status) {
+            <option [value]="status">{{ status }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table class="app-table min-w-[1050px]">
+        <thead>
+          <tr>
+            <th>Shipment</th>
+            <th>Customer / Order</th>
+            <th>Courier & Tracking</th>
+            <th>Expected Delivery</th>
+            <th>Status</th>
+            <th>Update Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          @for (shipment of filteredShipments; track shipment.id) {
+            <tr>
+              <td>
+                <div class="font-semibold text-slate-900">
+                  {{ shipment.shipmentNumber }}
+                </div>
+                <div class="mt-1 text-xs text-slate-500">
+                  Shipped: {{ shipment.shipmentDate | date: 'dd MMM yyyy' }}
+                </div>
+              </td>
+
+              <td>
+                <div class="font-medium text-slate-800">
+                  {{ shipment.customerName }}
+                </div>
+                <div class="mt-1 text-xs text-slate-500">
+                  {{ shipment.orderNumber }}
+                </div>
+              </td>
+
+              <td>
+                <div class="font-medium text-slate-800">
+                  {{ shipment.courier }}
+                </div>
+                <div class="mt-1 text-xs text-slate-500">
+                  {{ shipment.trackingNumber || 'Not assigned' }}
+                </div>
+              </td>
+
+              <td>
+                {{ shipment.expectedDelivery | date: 'dd MMM yyyy' }}
+              </td>
+
+              <td>
+                <span
+                  class="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+                  [ngClass]="statusClass(shipment.status)"
+                >
+                  {{ shipment.status }}
+                </span>
+              </td>
+
+              <td>
+                <select
+                  class="form-input min-w-40"
+                  [ngModel]="shipment.status"
+                  (ngModelChange)="updateStatus(shipment, $event)"
+                  [attr.aria-label]="'Update status for ' + shipment.shipmentNumber"
+                >
+                  @for (status of shipmentStatuses; track status) {
+                    <option [value]="status">{{ status }}</option>
+                  }
+                </select>
+              </td>
+
+              <td>
+                <button
+                  type="button"
+                  class="text-sm font-semibold text-blue-700 hover:text-blue-900"
+                  (click)="viewShipment(shipment)"
+                >
+                  View Details
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="7" class="py-10 text-center text-slate-500">
+                No shipments found. Try changing your search or filter.
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <p class="text-sm text-slate-500">
+      Showing {{ filteredShipments.length }} of {{ totalShipments }} shipments
+    </p>
+  </section>
+</div>
+
+<!-- Create shipment modal -->
+@if (showForm) {
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4"
+    (click)="showForm = false"
+  >
+    <section
+      class="my-auto max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="create-shipment-title"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h2 id="create-shipment-title" class="text-xl font-bold text-slate-900">
+            Create Shipment
+          </h2>
+          <p class="mt-1 text-sm text-slate-500">Select an order and enter its delivery details.</p>
+        </div>
+
+        <button
+          type="button"
+          class="text-2xl text-slate-400 hover:text-slate-700"
+          aria-label="Close form"
+          (click)="showForm = false"
+        >
+          &times;
+        </button>
+      </div>
+
+      @if (remainingOrders.length === 0) {
+        <div class="rounded-lg bg-amber-50 p-4 text-sm text-amber-800">
+          There are no unused demo orders available for shipment creation.
+        </div>
+      } @else {
+        <form #shipmentForm="ngForm" (ngSubmit)="createShipment()" class="space-y-4">
+          <div>
+            <label for="orderNumber" class="form-label">Order *</label>
+            <select
+              id="orderNumber"
+              name="orderNumber"
+              class="form-input"
+              required
+              [(ngModel)]="form.orderNumber"
+              (ngModelChange)="onOrderSelected()"
+            >
+              <option value="" disabled>Select an order</option>
+              @for (order of remainingOrders; track order.orderNumber) {
+                <option [value]="order.orderNumber">
+                  {{ order.orderNumber }} — {{ order.customerName }}
+                </option>
+              }
+            </select>
+          </div>
+
+          <div>
+            <label for="deliveryAddress" class="form-label">Delivery Address *</label>
+            <textarea
+              id="deliveryAddress"
+              name="deliveryAddress"
+              class="form-input"
+              rows="2"
+              required
+              [(ngModel)]="form.deliveryAddress"
+              placeholder="Enter complete delivery address"
+            ></textarea>
+          </div>
+
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label for="courier" class="form-label">Courier *</label>
+              <select
+                id="courier"
+                name="courier"
+                class="form-input"
+                required
+                [(ngModel)]="form.courier"
+              >
+                @for (courier of couriers; track courier) {
+                  <option [value]="courier">{{ courier }}</option>
+                }
+              </select>
+            </div>
+
+            <div>
+              <label for="trackingNumber" class="form-label">Tracking Number</label>
+              <input
+                id="trackingNumber"
+                name="trackingNumber"
+                class="form-input"
+                [(ngModel)]="form.trackingNumber"
+                placeholder="Enter tracking number if available"
+              />
+            </div>
+
+            <div>
+              <label for="shipmentDate" class="form-label">Shipment Date *</label>
+              <input
+                id="shipmentDate"
+                name="shipmentDate"
+                type="date"
+                class="form-input"
+                required
+                [(ngModel)]="form.shipmentDate"
+              />
+            </div>
+
+            <div>
+              <label for="expectedDelivery" class="form-label">Expected Delivery *</label>
+              <input
+                id="expectedDelivery"
+                name="expectedDelivery"
+                type="date"
+                class="form-input"
+                required
+                [min]="form.shipmentDate"
+                [(ngModel)]="form.expectedDelivery"
+              />
+            </div>
+
+            <div>
+              <label for="packageCount" class="form-label">Number of Packages *</label>
+              <input
+                id="packageCount"
+                name="packageCount"
+                type="number"
+                class="form-input"
+                min="1"
+                step="1"
+                required
+                [(ngModel)]="form.packageCount"
+              />
+            </div>
+
+            <div>
+              <label for="weight" class="form-label">Total Weight (kg) *</label>
+              <input
+                id="weight"
+                name="weight"
+                type="number"
+                class="form-input"
+                min="0.01"
+                step="0.01"
+                required
+                [(ngModel)]="form.weight"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label for="notes" class="form-label">Notes</label>
+            <textarea
+              id="notes"
+              name="notes"
+              class="form-input"
+              rows="2"
+              [(ngModel)]="form.notes"
+              placeholder="Optional delivery instructions"
+            ></textarea>
+          </div>
+
+          <div
+            class="flex flex-col-reverse justify-end gap-3 border-t border-slate-200 pt-5 sm:flex-row"
+          >
+            <button type="button" class="btn-secondary" (click)="showForm = false">Cancel</button>
+
+            <button type="submit" class="btn-primary" [disabled]="shipmentForm.invalid">
+              Create Shipment
+            </button>
+          </div>
+        </form>
+      }
+    </section>
+  </div>
+}
+
+<!-- Shipment details modal -->
+@if (selectedShipment; as shipment) {
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4"
+    (click)="closeDetails()"
+  >
+    <section
+      class="my-auto max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="shipment-details-title"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h2 id="shipment-details-title" class="text-xl font-bold text-slate-900">
+            {{ shipment.shipmentNumber }}
+          </h2>
+          <p class="mt-1 text-sm text-slate-500">Order: {{ shipment.orderNumber }}</p>
+        </div>
+
+        <button
+          type="button"
+          class="text-2xl text-slate-400 hover:text-slate-700"
+          aria-label="Close details"
+          (click)="closeDetails()"
+        >
+          &times;
+        </button>
+      </div>
+
+      <div class="mb-5">
+        <span
+          class="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+          [ngClass]="statusClass(shipment.status)"
+        >
+          {{ shipment.status }}
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <p class="text-sm text-slate-500">Customer</p>
+          <p class="mt-1 font-medium text-slate-900">{{ shipment.customerName }}</p>
+          <p class="mt-1 break-all text-sm text-slate-500">{{ shipment.customerEmail }}</p>
+        </div>
+
+        <div>
+          <p class="text-sm text-slate-500">Courier</p>
+          <p class="mt-1 font-medium text-slate-900">{{ shipment.courier }}</p>
+        </div>
+
+        <div>
+          <p class="text-sm text-slate-500">Tracking Number</p>
+          <p class="mt-1 font-medium text-slate-900">
+            {{ shipment.trackingNumber || 'Not assigned' }}
+          </p>
+        </div>
+
+        <div>
+          <p class="text-sm text-slate-500">Packages / Weight</p>
+          <p class="mt-1 font-medium text-slate-900">
+            {{ shipment.packageCount }} package(s) · {{ shipment.weight }} kg
+          </p>
+        </div>
+
+        <div>
+          <p class="text-sm text-slate-500">Shipment Date</p>
+          <p class="mt-1 font-medium text-slate-900">
+            {{ shipment.shipmentDate | date: 'dd MMM yyyy' }}
+          </p>
+        </div>
+
+        <div>
+          <p class="text-sm text-slate-500">Expected Delivery</p>
+          <p class="mt-1 font-medium text-slate-900">
+            {{ shipment.expectedDelivery | date: 'dd MMM yyyy' }}
+          </p>
+        </div>
+
+        <div class="sm:col-span-2">
+          <p class="text-sm text-slate-500">Delivery Address</p>
+          <p class="mt-1 font-medium text-slate-900">{{ shipment.deliveryAddress }}</p>
+        </div>
+
+        <div class="sm:col-span-2">
+          <p class="text-sm text-slate-500">Notes</p>
+          <p class="mt-1 text-slate-800">{{ shipment.notes || 'No notes added.' }}</p>
+        </div>
+      </div>
+
+      <div class="mt-6 border-t border-slate-200 pt-5">
+        <label for="details-status" class="form-label">Update Shipment Status</label>
+        <select
+          id="details-status"
+          class="form-input"
+          [ngModel]="shipment.status"
+          (ngModelChange)="updateStatus(shipment, $event)"
+        >
+          @for (status of shipmentStatuses; track status) {
+            <option [value]="status">{{ status }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="mt-5 flex justify-end">
+        <button type="button" class="btn-secondary" (click)="closeDetails()">Close</button>
+      </div>
+    </section>
+  </div>
+}

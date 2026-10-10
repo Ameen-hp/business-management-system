@@ -1,0 +1,235 @@
+<div class="page-container">
+  <!-- Page Heading -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Categories</h1>
+      <p class="page-description">Organize your products into categories for easier browsing.</p>
+    </div>
+
+    <button type="button" class="btn-primary" (click)="openCreateForm()">+ Create Category</button>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="app-card">
+      <div class="flex items-center justify-between">
+        <p class="text-sm font-medium text-slate-500">Total Categories</p>
+        <span class="rounded-lg bg-blue-100 p-2 text-blue-700">▤</span>
+      </div>
+      <p class="mt-4 text-3xl font-bold text-slate-800">
+        {{ categories.length }}
+      </p>
+    </div>
+
+    <div class="app-card">
+      <div class="flex items-center justify-between">
+        <p class="text-sm font-medium text-slate-500">Active Categories</p>
+        <span class="rounded-lg bg-green-100 p-2 text-green-700">✓</span>
+      </div>
+      <p class="mt-4 text-3xl font-bold text-green-600">
+        {{ activeCount }}
+      </p>
+    </div>
+
+    <div class="app-card">
+      <div class="flex items-center justify-between">
+        <p class="text-sm font-medium text-slate-500">Inactive Categories</p>
+        <span class="rounded-lg bg-red-100 p-2 text-red-700">−</span>
+      </div>
+      <p class="mt-4 text-3xl font-bold text-red-600">
+        {{ inactiveCount }}
+      </p>
+    </div>
+
+    <div class="app-card">
+      <div class="flex items-center justify-between">
+        <p class="text-sm font-medium text-slate-500">Products in Categories</p>
+        <span class="rounded-lg bg-purple-100 p-2 text-purple-700">□</span>
+      </div>
+      <p class="mt-4 text-3xl font-bold text-slate-800">
+        {{ totalProducts }}
+      </p>
+    </div>
+  </div>
+
+  <!-- Category Table -->
+  <section class="app-card">
+    <div class="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-800">All Categories</h2>
+        <p class="mt-1 text-sm text-slate-500">View and manage your product categories.</p>
+      </div>
+
+      <div class="w-full sm:max-w-sm">
+        <input
+          type="search"
+          class="form-input"
+          placeholder="Search categories..."
+          aria-label="Search categories"
+          [(ngModel)]="searchTerm"
+        />
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table class="app-table">
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th>Products</th>
+            <th>Created Date</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          @for (category of filteredCategories; track category.id) {
+            <tr>
+              <td>
+                <div>
+                  <p class="font-semibold text-slate-800">
+                    {{ category.name }}
+                  </p>
+                  <p class="mt-1 max-w-xs text-xs text-slate-500">
+                    {{ category.description || 'No description provided' }}
+                  </p>
+                </div>
+              </td>
+
+              <td>
+                <span
+                  class="inline-flex rounded-lg bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700"
+                >
+                  {{ category.productCount }}
+                </span>
+              </td>
+
+              <td class="whitespace-nowrap">
+                {{ category.createdAt }}
+              </td>
+
+              <td>
+                <span
+                  class="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+                  [class.bg-green-100]="category.status === 'Active'"
+                  [class.text-green-700]="category.status === 'Active'"
+                  [class.bg-red-100]="category.status === 'Inactive'"
+                  [class.text-red-700]="category.status === 'Inactive'"
+                >
+                  {{ category.status }}
+                </span>
+              </td>
+
+              <td>
+                <div class="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    (click)="openEditForm(category)"
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    type="button"
+                    class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium transition hover:bg-slate-50"
+                    [class.text-red-600]="category.status === 'Active'"
+                    [class.text-green-600]="category.status === 'Inactive'"
+                    (click)="toggleStatus(category)"
+                  >
+                    {{ category.status === 'Active' ? 'Deactivate' : 'Activate' }}
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5" class="px-5 py-10 text-center text-slate-500">
+                No categories found. Try a different search or create a category.
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <p class="mt-4 text-sm text-slate-500">
+      Showing {{ filteredCategories.length }} of {{ categories.length }} categories
+    </p>
+  </section>
+</div>
+
+<!-- Create / Edit Modal -->
+@if (showForm) {
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4"
+    (click)="closeForm()"
+  >
+    <section
+      class="my-auto w-full max-w-lg rounded-2xl bg-white shadow-xl"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="category-form-title"
+      (click)="$event.stopPropagation()"
+    >
+      <!-- Modal Header -->
+      <div class="flex items-start justify-between border-b border-slate-200 p-6">
+        <div>
+          <h2 id="category-form-title" class="text-xl font-bold text-slate-800">
+            {{ editingId !== null ? 'Edit Category' : 'Create Category' }}
+          </h2>
+          <p class="mt-1 text-sm text-slate-500">Enter the category details below.</p>
+        </div>
+
+        <button
+          type="button"
+          class="rounded-lg px-3 py-1 text-xl text-slate-500 hover:bg-slate-100"
+          aria-label="Close form"
+          (click)="closeForm()"
+        >
+          &times;
+        </button>
+      </div>
+
+      <!-- Modal Form -->
+      <form #categoryForm="ngForm" (ngSubmit)="saveCategory()" class="space-y-5 p-6">
+        <div>
+          <label for="categoryName" class="form-label"> Category Name * </label>
+          <input
+            id="categoryName"
+            name="name"
+            type="text"
+            class="form-input"
+            placeholder="e.g. Electronics"
+            [(ngModel)]="form.name"
+            required
+            maxlength="100"
+          />
+        </div>
+
+        <div>
+          <label for="categoryDescription" class="form-label"> Description </label>
+          <textarea
+            id="categoryDescription"
+            name="description"
+            class="form-input min-h-28 resize-y"
+            placeholder="Describe the products in this category..."
+            [(ngModel)]="form.description"
+            maxlength="500"
+          ></textarea>
+        </div>
+
+        <div
+          class="flex flex-col-reverse justify-end gap-3 border-t border-slate-200 pt-5 sm:flex-row"
+        >
+          <button type="button" class="btn-secondary" (click)="closeForm()">Cancel</button>
+
+          <button type="submit" class="btn-primary" [disabled]="categoryForm.invalid">
+            {{ editingId !== null ? 'Save Changes' : 'Create Category' }}
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+}

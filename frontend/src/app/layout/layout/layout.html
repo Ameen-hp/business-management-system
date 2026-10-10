@@ -1,0 +1,17 @@
+<div class="flex min-h-screen flex-col bg-slate-50">
+  <!-- Header -->
+  <app-header class="block shrink-0" (sidebarToggle)="sidebarOpen = !sidebarOpen" />
+
+  <div class="flex min-h-0 flex-1 flex-col md:flex-row">
+    <!-- Sidebar -->
+    <app-admin-sidebar class="block w-full shrink-0 md:w-64 md:self-stretch" />
+
+    <!-- Dashboard / Page Content -->
+    <main class="min-w-0 flex-1 p-3 sm:p-4 md:p-6">
+      <router-outlet />
+    </main>
+  </div>
+
+  <!-- Footer -->
+  <app-footer class="block shrink-0" />
+</div>

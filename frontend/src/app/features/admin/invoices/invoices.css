@@ -1,0 +1,22 @@
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #invoice-print-area,
+  #invoice-print-area * {
+    visibility: visible;
+  }
+
+  #invoice-print-area {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    padding: 20px;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+}

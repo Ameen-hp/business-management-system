@@ -1,0 +1,11 @@
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  :host {
+    width: 100%;
+  }
+}

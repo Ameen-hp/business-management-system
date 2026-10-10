@@ -1,0 +1,21 @@
+
+/* Common page spacing */
+.page-container {
+  @apply space-y-6 p-4 md:p-6;
+}
+
+/* Page title and action button */
+.page-header {
+  @apply flex flex-col justify-between gap-4 sm:flex-row sm:items-center;
+}
+
+/* Responsive grid for summary cards */
+.stats-grid {
+  @apply grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4;
+}
+
+/* Form layout */
+.form-grid {
+  @apply grid grid-cols-1 gap-5 md:grid-cols-2;
+}
+

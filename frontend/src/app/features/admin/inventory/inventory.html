@@ -1,0 +1,244 @@
+<div class="page-container">
+  <div class="page-header flex-wrap gap-4">
+    <div>
+      <h1 class="page-title">Inventory Management</h1>
+      <p class="page-description">
+        Monitor available stock and record stock additions or reductions.
+      </p>
+    </div>
+  </div>
+
+  <!-- Inventory summary -->
+  <div class="stats-grid mb-6">
+    <div class="app-card">
+      <p class="text-sm text-slate-500">Product Types</p>
+      <h2 class="mt-2 text-2xl font-bold text-slate-800">
+        {{ totalProducts }}
+      </h2>
+    </div>
+
+    <div class="app-card">
+      <p class="text-sm text-slate-500">Total Units</p>
+      <h2 class="mt-2 text-2xl font-bold text-blue-600">
+        {{ totalUnits }}
+      </h2>
+    </div>
+
+    <div class="app-card">
+      <p class="text-sm text-slate-500">Low Stock Items</p>
+      <h2 class="mt-2 text-2xl font-bold text-amber-600">
+        {{ lowStockCount }}
+      </h2>
+    </div>
+
+    <div class="app-card">
+      <p class="text-sm text-slate-500">Out of Stock</p>
+      <h2 class="mt-2 text-2xl font-bold text-red-600">
+        {{ outOfStockCount }}
+      </h2>
+    </div>
+
+    <div class="app-card">
+      <p class="text-sm text-slate-500">Stock Value</p>
+      <h2 class="mt-2 text-2xl font-bold text-slate-800">
+        Rs. {{ totalStockValue | number: '1.0-2' }}
+      </h2>
+      <p class="mt-1 text-xs text-slate-400">Quantity × unit cost</p>
+    </div>
+  </div>
+
+  <!-- Search and filter -->
+  <div class="app-card mb-6">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div>
+        <label class="form-label" for="inventorySearch"> Search inventory </label>
+        <input
+          id="inventorySearch"
+          class="form-input"
+          type="text"
+          [(ngModel)]="searchTerm"
+          placeholder="Search product, SKU, category..."
+        />
+      </div>
+
+      <div>
+        <label class="form-label" for="stockFilter">Stock Status</label>
+        <select id="stockFilter" class="form-input" [(ngModel)]="stockFilter">
+          <option value="All">All Stock</option>
+          <option value="In Stock">In Stock</option>
+          <option value="Low Stock">Low Stock</option>
+          <option value="Out of Stock">Out of Stock</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inventory table -->
+  <div class="app-card">
+    <div class="mb-4">
+      <h2 class="text-lg font-semibold text-slate-800">Stock Overview</h2>
+      <p class="text-sm text-slate-500">{{ filteredInventory.length }} inventory item(s) found</p>
+    </div>
+
+    <div class="table-container">
+      <table class="app-table">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Category</th>
+            <th>Available</th>
+            <th>Reorder Level</th>
+            <th>Unit Cost</th>
+            <th>Stock Value</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          @for (item of filteredInventory; track item.id) {
+            <tr>
+              <td>
+                <p class="font-medium text-slate-800">
+                  {{ item.productName }}
+                </p>
+                <p class="mt-1 text-xs text-slate-500">{{ item.sku }}</p>
+              </td>
+
+              <td>{{ item.category }}</td>
+
+              <td class="font-semibold">{{ item.quantity }}</td>
+
+              <td>{{ item.reorderLevel }}</td>
+
+              <td>Rs. {{ item.unitCost | number: '1.0-2' }}</td>
+
+              <td class="font-medium">Rs. {{ item.quantity * item.unitCost | number: '1.0-2' }}</td>
+
+              <td>
+                <span
+                  class="rounded-full px-3 py-1 text-xs font-medium"
+                  [class.bg-green-100]="getStockStatus(item) === 'In Stock'"
+                  [class.text-green-700]="getStockStatus(item) === 'In Stock'"
+                  [class.bg-amber-100]="getStockStatus(item) === 'Low Stock'"
+                  [class.text-amber-700]="getStockStatus(item) === 'Low Stock'"
+                  [class.bg-red-100]="getStockStatus(item) === 'Out of Stock'"
+                  [class.text-red-700]="getStockStatus(item) === 'Out of Stock'"
+                >
+                  {{ getStockStatus(item) }}
+                </span>
+              </td>
+
+              <td>
+                <div class="flex flex-wrap gap-2">
+                  <button class="btn-primary" type="button" (click)="openStockForm(item, 'Add')">
+                    + Add
+                  </button>
+
+                  <button
+                    class="btn-secondary"
+                    type="button"
+                    [disabled]="item.quantity === 0"
+                    (click)="openStockForm(item, 'Remove')"
+                  >
+                    − Remove
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="8" class="py-8 text-center text-slate-500">No inventory items found.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Stock adjustment modal -->
+  @if (showStockForm && selectedItem) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4"
+    >
+      <div class="my-auto w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
+        <div class="mb-6 flex items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-bold text-slate-800">
+              {{ stockAction === 'Add' ? 'Add Stock' : 'Remove Stock' }}
+            </h2>
+            <p class="mt-1 text-sm text-slate-500">
+              {{ selectedItem.productName }} ({{ selectedItem.sku }})
+            </p>
+          </div>
+
+          <button
+            class="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-100"
+            type="button"
+            (click)="closeStockForm()"
+            aria-label="Close stock form"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div class="mb-5 rounded-lg bg-slate-50 p-4">
+          <p class="text-sm text-slate-500">Current available stock</p>
+          <p class="mt-1 text-2xl font-bold text-slate-800">{{ selectedItem.quantity }} units</p>
+        </div>
+
+        <form (ngSubmit)="updateStock()">
+          <div class="mb-4">
+            <label class="form-label" for="stockQuantity">
+              Quantity to {{ stockAction === 'Add' ? 'Add' : 'Remove' }} *
+            </label>
+            <input
+              id="stockQuantity"
+              class="form-input"
+              type="number"
+              name="stockQuantity"
+              [(ngModel)]="stockQuantity"
+              min="1"
+              step="1"
+              required
+            />
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label" for="stockNote">Reason / Note</label>
+            <textarea
+              id="stockNote"
+              class="form-input"
+              name="stockNote"
+              [(ngModel)]="stockNote"
+              rows="3"
+              maxlength="300"
+              placeholder="e.g. New delivery or damaged items"
+            ></textarea>
+          </div>
+
+          @if (stockAction === 'Remove' && stockQuantity > selectedItem.quantity) {
+            <p class="mb-4 text-sm text-red-600">The removal quantity exceeds available stock.</p>
+          }
+
+          <div class="flex justify-end gap-3">
+            <button class="btn-secondary" type="button" (click)="closeStockForm()">Cancel</button>
+
+            <button
+              class="btn-primary"
+              type="submit"
+              [disabled]="
+                !stockQuantity ||
+                stockQuantity < 1 ||
+                stockQuantity % 1 !== 0 ||
+                (stockAction === 'Remove' && stockQuantity > selectedItem.quantity)
+              "
+            >
+              Confirm {{ stockAction }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+</div>
