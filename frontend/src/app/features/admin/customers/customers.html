@@ -58,6 +58,7 @@
           <tr>
             <th>Customer</th>
             <th>Phone</th>
+            <th>Address</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
@@ -83,6 +84,24 @@
                     </p>
                   </div>
                 </div>
+              </td>
+
+              <td>{{ customer.phone }}</td>
+
+              <td>
+                {{ customer.address || '—' }}
+              </td>
+
+              <td>
+                <span
+                  class="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+                  [class.bg-green-100]="customer.status === 'Active'"
+                  [class.text-green-700]="customer.status === 'Active'"
+                  [class.bg-red-100]="customer.status === 'Inactive'"
+                  [class.text-red-700]="customer.status === 'Inactive'"
+                >
+                  {{ customer.status }}
+                </span>
               </td>
 
               <td>{{ customer.phone }}</td>
@@ -213,6 +232,21 @@
             required
             maxlength="20"
             autocomplete="tel"
+          />
+        </div>
+
+        <div>
+          <label for="customerAddress" class="form-label"> Address * </label>
+          <input
+            id="customerAddress"
+            name="address"
+            type="text"
+            class="form-input"
+            placeholder="Enter address"
+            [(ngModel)]="form.address"
+            required
+            maxlength="200"
+            autocomplete="street-address"
           />
         </div>
 
