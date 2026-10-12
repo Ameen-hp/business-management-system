@@ -1,83 +1,167 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
+import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { DecimalPipe } from '@angular/common';
+
+import { ApiService } from '../../../core/guards/interceptors/services/api.service';
+import {
+  InventoryResponse,
+  OpeningStockRequest,
+  StockAdjustmentRequest,
+  StockMovementResponse,
+} from '../../../shared/models/inventory.model';
+import { ProductResponse } from '../../../shared/models/product.model';
 
 type StockStatus = 'In Stock' | 'Low Stock' | 'Out of Stock';
 type StockAction = 'Add' | 'Remove';
 
-interface InventoryItem {
-  id: number;
-  productName: string;
-  sku: string;
-  category: string;
-  quantity: number;
-  reorderLevel: number;
-  unitCost: number;
-}
-
 @Component({
   selector: 'app-inventory',
   standalone: true,
-  imports: [FormsModule, DecimalPipe],
+  imports: [CommonModule, FormsModule, DecimalPipe],
   templateUrl: './inventory.html',
   styleUrl: './inventory.css',
 })
-export class InventoryComponent {
+export class InventoryComponent implements OnInit {
+  private apiService = inject(ApiService);
+
+  readonly Number = Number;
+
   searchTerm = '';
   stockFilter = 'All';
+
+  inventory: InventoryResponse[] = [];
+  products: ProductResponse[] = [];
+  stockMovements: StockMovementResponse[] = [];
+
+  loading = false;
+  loadingProducts = false;
+  loadingMovements = false;
+  savingStock = false;
+
+  errorMessage = '';
+  productErrorMessage = '';
+  movementErrorMessage = '';
+
+  // Stock adjustment modal
   showStockForm = false;
   selectedItemId: number | null = null;
   stockAction: StockAction = 'Add';
   stockQuantity = 1;
   stockNote = '';
 
-  inventory: InventoryItem[] = [
-    {
-      id: 1,
-      productName: 'Wireless Mouse',
-      sku: 'ELE-001',
-      category: 'Electronics',
-      quantity: 50,
-      reorderLevel: 10,
-      unitCost: 900,
-    },
-    {
-      id: 2,
-      productName: 'USB Keyboard',
-      sku: 'ELE-002',
-      category: 'Electronics',
-      quantity: 7,
-      reorderLevel: 10,
-      unitCost: 1600,
-    },
-    {
-      id: 3,
-      productName: 'Office Notebook',
-      sku: 'OFF-001',
-      category: 'Office Supplies',
-      quantity: 0,
-      reorderLevel: 20,
-      unitCost: 200,
-    },
-    {
-      id: 4,
-      productName: 'Cotton T-Shirt',
-      sku: 'CLO-001',
-      category: 'Clothing',
-      quantity: 35,
-      reorderLevel: 8,
-      unitCost: 700,
-    },
-  ];
+  // Opening stock modal
+  showOpeningStockForm = false;
+  openingProductId: number | null = null;
+  openingQuantity = 1;
+  openingUnitCost: number | null = null;
+  openingReorderLevel = 0;
+  openingReason = '';
 
-  get filteredInventory(): InventoryItem[] {
+  // Stock movement history modal
+  showMovementsModal = false;
+  movementProductName = '';
+  movementProductId: number | null = null;
+
+  ngOnInit(): void {
+    this.loadInventory();
+    this.loadProducts();
+  }
+
+  // 1. Get all inventory records
+  loadInventory(): void {
+    this.loading = true;
+    this.errorMessage = '';
+
+    this.apiService.getAllInventory().subscribe({
+      next: (response) => {
+        this.inventory = Array.isArray(response) ? response : [];
+        console.log('inventory laoded ', this.inventory);
+        this.loading = false;
+      },
+      error: (error) => {
+        console.error('Failed to load inventory:', error);
+        this.errorMessage = 'Unable to load inventory. Please try again.';
+        this.loading = false;
+      },
+    });
+  }
+
+  // Load products so the admin can create opening stock
+  loadProducts(): void {
+    this.loadingProducts = true;
+    this.productErrorMessage = '';
+
+    this.apiService.getAllProducts().subscribe({
+      next: (response) => {
+        this.products = Array.isArray(response) ? response : [];
+        this.loadingProducts = false;
+      },
+      error: (error) => {
+        console.error('Failed to load products:', error);
+        this.productErrorMessage = 'Unable to load products for opening stock.';
+        this.loadingProducts = false;
+      },
+    });
+  }
+
+  // Products without inventory records
+  get productsWithoutInventory(): ProductResponse[] {
+    const inventoryProductIds = new Set(this.inventory.map((item) => item.productId));
+
+    return this.products.filter(
+      (product) => !inventoryProductIds.has(product.id) && product.status === 'Active',
+    );
+  }
+
+  // 2. Get a specific product's inventory from the backend
+  refreshProductInventory(productId: number): void {
+    this.apiService.getInventoryByProductId(productId).subscribe({
+      next: (response) => {
+        this.inventory = this.inventory.map((item) =>
+          item.productId === productId ? response : item,
+        );
+      },
+      error: (error) => {
+        console.error('Failed to refresh product inventory:', error);
+        this.loadInventory();
+      },
+    });
+  }
+
+  retryMovements(): void {
+    if (this.movementProductId === null) {
+      return;
+    }
+
+    const productId = this.movementProductId;
+
+    this.loadingMovements = true;
+    this.movementErrorMessage = '';
+
+    this.apiService.getStockMovements(productId).subscribe({
+      next: (response) => {
+        this.stockMovements = Array.isArray(response) ? response : [];
+        this.loadingMovements = false;
+      },
+      error: (error) => {
+        console.error('Failed to reload stock movements:', error);
+
+        this.movementErrorMessage = 'Unable to load stock movement history. Please try again.';
+
+        this.loadingMovements = false;
+      },
+    });
+  }
+
+  // Search and filter
+  get filteredInventory(): InventoryResponse[] {
     const term = this.searchTerm.trim().toLowerCase();
 
     return this.inventory.filter((item) => {
       const matchesSearch =
-        item.productName.toLowerCase().includes(term) ||
-        item.sku.toLowerCase().includes(term) ||
-        item.category.toLowerCase().includes(term);
+        (item.productName ?? '').toLowerCase().includes(term) ||
+        (item.sku ?? '').toLowerCase().includes(term) ||
+        (item.category ?? '').toLowerCase().includes(term);
 
       const matchesStatus =
         this.stockFilter === 'All' || this.getStockStatus(item) === this.stockFilter;
@@ -86,6 +170,7 @@ export class InventoryComponent {
     });
   }
 
+  // Summary cards
   get totalProducts(): number {
     return this.inventory.length;
   }
@@ -104,10 +189,10 @@ export class InventoryComponent {
   }
 
   get totalStockValue(): number {
-    return this.inventory.reduce((total, item) => total + item.quantity * item.unitCost, 0);
+    return this.inventory.reduce((total, item) => total + item.stockValue, 0);
   }
 
-  getStockStatus(item: InventoryItem): StockStatus {
+  getStockStatus(item: InventoryResponse): StockStatus {
     if (item.quantity === 0) {
       return 'Out of Stock';
     }
@@ -119,7 +204,81 @@ export class InventoryComponent {
     return 'In Stock';
   }
 
-  openStockForm(item: InventoryItem, action: StockAction): void {
+  // 3. Opening stock
+  openOpeningStockForm(): void {
+    this.openingProductId = null;
+    this.openingQuantity = 1;
+    this.openingUnitCost = null;
+    this.openingReorderLevel = 0;
+    this.openingReason = '';
+    this.showOpeningStockForm = true;
+  }
+
+  createOpeningStock(): void {
+    const productId = Number(this.openingProductId);
+    const quantity = Number(this.openingQuantity);
+    const unitCost = Number(this.openingUnitCost);
+    const reorderLevel = Number(this.openingReorderLevel);
+    const reason = this.openingReason.trim();
+
+    if (!Number.isInteger(productId) || productId <= 0) {
+      alert('Please select a product.');
+      return;
+    }
+
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      alert('Opening quantity must be a whole number greater than zero.');
+      return;
+    }
+
+    if (!Number.isFinite(unitCost) || unitCost < 0) {
+      alert('Unit cost must be zero or greater.');
+      return;
+    }
+
+    if (!Number.isInteger(reorderLevel) || reorderLevel < 0) {
+      alert('Reorder level must be a whole number of zero or greater.');
+      return;
+    }
+
+    if (!reason) {
+      alert('Please enter a reason for the opening stock.');
+      return;
+    }
+
+    const request: OpeningStockRequest = {
+      quantity,
+      unitCost,
+      reorderLevel,
+      reason,
+    };
+
+    this.savingStock = true;
+
+    this.apiService.addOpeningStock(productId, request).subscribe({
+      next: () => {
+        this.savingStock = false;
+        this.showOpeningStockForm = false;
+
+        // Refresh both lists after successful creation.
+        this.loadInventory();
+        this.loadProducts();
+      },
+      error: (error) => {
+        console.error('Failed to create opening stock:', error);
+        this.savingStock = false;
+
+        alert(
+          error?.error?.message ||
+            error?.error?.detail ||
+            'Unable to create opening stock. Please try again.',
+        );
+      },
+    });
+  }
+
+  // 4. Add or remove stock
+  openStockForm(item: InventoryResponse, action: StockAction): void {
     this.selectedItemId = item.id;
     this.stockAction = action;
     this.stockQuantity = 1;
@@ -128,9 +287,9 @@ export class InventoryComponent {
   }
 
   updateStock(): void {
-    const item = this.inventory.find((stockItem) => stockItem.id === this.selectedItemId);
-
+    const item = this.selectedItem;
     const quantity = Number(this.stockQuantity);
+    const reason = this.stockNote.trim();
 
     if (!item) {
       alert('Please select a valid inventory item.');
@@ -142,30 +301,99 @@ export class InventoryComponent {
       return;
     }
 
+    if (!reason) {
+      alert('Please enter a reason for this adjustment.');
+      return;
+    }
+
     if (this.stockAction === 'Remove' && quantity > item.quantity) {
       alert('You cannot remove more units than the available stock.');
       return;
     }
 
-    if (this.stockAction === 'Add') {
-      item.quantity += quantity;
-    } else {
-      item.quantity -= quantity;
-    }
+    const request: StockAdjustmentRequest = {
+      type: this.stockAction === 'Add' ? 'ADD' : 'REMOVE',
+      quantity,
+      reason,
+    };
 
-    // In a real application, save this adjustment to the backend
-    // together with the user, date, and reason for an audit trail.
-    this.closeStockForm();
+    this.savingStock = true;
+
+    this.apiService.adjustStock(item.productId, request).subscribe({
+      next: () => {
+        this.showStockForm = false;
+        this.selectedItemId = null;
+
+        // Use the specific-inventory endpoint to get the latest server data.
+        this.apiService.getInventoryByProductId(item.productId).subscribe({
+          next: (updatedItem) => {
+            this.inventory = this.inventory.map((stockItem) =>
+              stockItem.productId === item.productId ? updatedItem : stockItem,
+            );
+            this.savingStock = false;
+          },
+          error: (error) => {
+            console.error('Failed to refresh adjusted stock:', error);
+            this.savingStock = false;
+            this.loadInventory();
+          },
+        });
+      },
+      error: (error) => {
+        console.error('Failed to adjust stock:', error);
+        this.savingStock = false;
+
+        alert(
+          error?.error?.message ||
+            error?.error?.detail ||
+            'Unable to update stock. Please try again.',
+        );
+      },
+    });
   }
 
   closeStockForm(): void {
+    if (this.savingStock) {
+      return;
+    }
+
     this.showStockForm = false;
     this.selectedItemId = null;
     this.stockQuantity = 1;
     this.stockNote = '';
   }
 
-  get selectedItem(): InventoryItem | undefined {
+  get selectedItem(): InventoryResponse | undefined {
     return this.inventory.find((item) => item.id === this.selectedItemId);
+  }
+
+  // 5. Get and display stock movement history
+  openMovements(item: InventoryResponse): void {
+    this.movementProductId = item.productId;
+    this.movementProductName = item.productName;
+    this.stockMovements = [];
+    this.movementErrorMessage = '';
+    this.loadingMovements = true;
+    this.showMovementsModal = true;
+
+    this.apiService.getStockMovements(item.productId).subscribe({
+      next: (response) => {
+        this.stockMovements = Array.isArray(response) ? response : [];
+        this.loadingMovements = false;
+      },
+      error: (error) => {
+        console.error('Failed to load stock movements:', error);
+        this.movementErrorMessage = 'Unable to load stock movement history.';
+        this.loadingMovements = false;
+      },
+    });
+  }
+
+  closeMovements(): void {
+    this.showMovementsModal = false;
+    this.movementProductId = null;
+    this.movementProductName = '';
+    this.stockMovements = [];
+    this.movementErrorMessage = '';
   }
 }

@@ -1,41 +1,90 @@
 <div class="page-container">
+  <!-- Page Header -->
   <div class="page-header flex-wrap gap-4">
     <div>
       <h1 class="page-title">Inventory Management</h1>
       <p class="page-description">
-        Monitor available stock and record stock additions or reductions.
+        Monitor stock, initialize inventory, and track stock movements.
       </p>
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+      <button
+        type="button"
+        (click)="openOpeningStockForm()"
+        [disabled]="loading || loadingProducts || productsWithoutInventory.length === 0"
+      >
+        Opening Stock
+      </button>
+
+      <button
+        class="btn-secondary"
+        type="button"
+        (click)="loadInventory(); loadProducts()"
+        [disabled]="loading || loadingProducts || savingStock"
+      >
+        {{ loading ? 'Refreshing...' : 'Refresh Inventory' }}
+      </button>
     </div>
   </div>
 
-  <!-- Inventory summary -->
+  <!-- Loading -->
+  @if (loading) {
+    <div class="app-card mb-6 text-center">
+      <p class="text-slate-600">Loading inventory from the server...</p>
+    </div>
+  }
+
+  <!-- Inventory Error -->
+  @if (errorMessage) {
+    <div class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4" role="alert">
+      <p class="font-medium text-red-700">{{ errorMessage }}</p>
+      <button
+        class="btn-secondary mt-3"
+        type="button"
+        (click)="loadInventory()"
+        [disabled]="loading"
+      >
+        Try Again
+      </button>
+    </div>
+  }
+
+  <!-- Product Loading/Error -->
+  @if (productErrorMessage) {
+    <div class="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4" role="alert">
+      <p class="text-amber-800">{{ productErrorMessage }}</p>
+      <button
+        class="btn-secondary mt-3"
+        type="button"
+        (click)="loadProducts()"
+        [disabled]="loadingProducts"
+      >
+        Retry Loading Products
+      </button>
+    </div>
+  }
+
+  <!-- Summary -->
   <div class="stats-grid mb-6">
     <div class="app-card">
       <p class="text-sm text-slate-500">Product Types</p>
-      <h2 class="mt-2 text-2xl font-bold text-slate-800">
-        {{ totalProducts }}
-      </h2>
+      <h2 class="mt-2 text-2xl font-bold text-slate-800">{{ totalProducts }}</h2>
     </div>
 
     <div class="app-card">
       <p class="text-sm text-slate-500">Total Units</p>
-      <h2 class="mt-2 text-2xl font-bold text-blue-600">
-        {{ totalUnits }}
-      </h2>
+      <h2 class="mt-2 text-2xl font-bold text-blue-600">{{ totalUnits }}</h2>
     </div>
 
     <div class="app-card">
       <p class="text-sm text-slate-500">Low Stock Items</p>
-      <h2 class="mt-2 text-2xl font-bold text-amber-600">
-        {{ lowStockCount }}
-      </h2>
+      <h2 class="mt-2 text-2xl font-bold text-amber-600">{{ lowStockCount }}</h2>
     </div>
 
     <div class="app-card">
       <p class="text-sm text-slate-500">Out of Stock</p>
-      <h2 class="mt-2 text-2xl font-bold text-red-600">
-        {{ outOfStockCount }}
-      </h2>
+      <h2 class="mt-2 text-2xl font-bold text-red-600">{{ outOfStockCount }}</h2>
     </div>
 
     <div class="app-card">
@@ -47,15 +96,16 @@
     </div>
   </div>
 
-  <!-- Search and filter -->
+  <!-- Search and Filter -->
   <div class="app-card mb-6">
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
       <div>
-        <label class="form-label" for="inventorySearch"> Search inventory </label>
+        <label class="form-label" for="inventorySearch">Search Inventory</label>
         <input
           id="inventorySearch"
           class="form-input"
           type="text"
+          name="inventorySearch"
           [(ngModel)]="searchTerm"
           placeholder="Search product, SKU, category..."
         />
@@ -63,7 +113,7 @@
 
       <div>
         <label class="form-label" for="stockFilter">Stock Status</label>
-        <select id="stockFilter" class="form-input" [(ngModel)]="stockFilter">
+        <select id="stockFilter" class="form-input" name="stockFilter" [(ngModel)]="stockFilter">
           <option value="All">All Stock</option>
           <option value="In Stock">In Stock</option>
           <option value="Low Stock">Low Stock</option>
@@ -73,7 +123,7 @@
     </div>
   </div>
 
-  <!-- Inventory table -->
+  <!-- Inventory Table -->
   <div class="app-card">
     <div class="mb-4">
       <h2 class="text-lg font-semibold text-slate-800">Stock Overview</h2>
@@ -99,21 +149,15 @@
           @for (item of filteredInventory; track item.id) {
             <tr>
               <td>
-                <p class="font-medium text-slate-800">
-                  {{ item.productName }}
-                </p>
+                <p class="font-medium text-slate-800">{{ item.productName }}</p>
                 <p class="mt-1 text-xs text-slate-500">{{ item.sku }}</p>
               </td>
 
               <td>{{ item.category }}</td>
-
               <td class="font-semibold">{{ item.quantity }}</td>
-
               <td>{{ item.reorderLevel }}</td>
-
               <td>Rs. {{ item.unitCost | number: '1.0-2' }}</td>
-
-              <td class="font-medium">Rs. {{ item.quantity * item.unitCost | number: '1.0-2' }}</td>
+              <td class="font-medium">Rs. {{ item.stockValue | number: '1.0-2' }}</td>
 
               <td>
                 <span
@@ -131,24 +175,48 @@
 
               <td>
                 <div class="flex flex-wrap gap-2">
-                  <button class="btn-primary" type="button" (click)="openStockForm(item, 'Add')">
+                  <button
+                    class="btn-primary"
+                    type="button"
+                    (click)="openStockForm(item, 'Add')"
+                    [disabled]="savingStock"
+                  >
                     + Add
                   </button>
 
                   <button
                     class="btn-secondary"
                     type="button"
-                    [disabled]="item.quantity === 0"
                     (click)="openStockForm(item, 'Remove')"
+                    [disabled]="item.quantity === 0 || savingStock"
                   >
                     − Remove
+                  </button>
+
+                  <button
+                    class="btn-secondary"
+                    type="button"
+                    (click)="openMovements(item)"
+                    [disabled]="loadingMovements"
+                  >
+                    History
                   </button>
                 </div>
               </td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="8" class="py-8 text-center text-slate-500">No inventory items found.</td>
+              <td colspan="8" class="py-8 text-center text-slate-500">
+                @if (loading) {
+                  Loading inventory...
+                } @else if (errorMessage) {
+                  Inventory could not be loaded.
+                } @else if (inventory.length === 0) {
+                  No inventory records found. Use Opening Stock to initialize a product.
+                } @else {
+                  No inventory items match your search or filter.
+                }
+              </td>
             </tr>
           }
         </tbody>
@@ -156,7 +224,151 @@
     </div>
   </div>
 
-  <!-- Stock adjustment modal -->
+  <!-- Opening Stock Modal -->
+  @if (showOpeningStockForm) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4"
+    >
+      <div class="my-auto w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
+        <div class="mb-6 flex items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-bold text-slate-800">Initialize Opening Stock</h2>
+            <p class="mt-1 text-sm text-slate-500">
+              Create the initial inventory record for a product.
+            </p>
+          </div>
+
+          <button
+            class="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-100"
+            type="button"
+            (click)="showOpeningStockForm = false"
+            [disabled]="savingStock"
+            aria-label="Close opening stock form"
+          >
+            ✕
+          </button>
+        </div>
+
+        <form #openingForm="ngForm" (ngSubmit)="createOpeningStock()">
+          <div class="mb-4">
+            <label class="form-label" for="openingProduct">Product *</label>
+            <select
+              id="openingProduct"
+              class="form-input"
+              name="openingProductId"
+              [(ngModel)]="openingProductId"
+              required
+              [disabled]="savingStock || loadingProducts"
+            >
+              <option [ngValue]="null">Select a product</option>
+              @for (product of productsWithoutInventory; track product.id) {
+                <option [ngValue]="product.id">{{ product.name }} ({{ product.sku }})</option>
+              }
+            </select>
+
+            @if (productsWithoutInventory.length === 0 && !loadingProducts) {
+              <p class="mt-1 text-sm text-slate-500">
+                No active products without inventory are available.
+              </p>
+            }
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label" for="openingQuantity">Opening Quantity *</label>
+            <input
+              id="openingQuantity"
+              class="form-input"
+              type="number"
+              name="openingQuantity"
+              [(ngModel)]="openingQuantity"
+              min="1"
+              step="1"
+              required
+              [disabled]="savingStock"
+            />
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label" for="openingUnitCost">Unit Cost (Rs.) *</label>
+            <input
+              id="openingUnitCost"
+              class="form-input"
+              type="number"
+              name="openingUnitCost"
+              [(ngModel)]="openingUnitCost"
+              min="0"
+              step="0.01"
+              required
+              [disabled]="savingStock"
+            />
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label" for="openingReorderLevel">Reorder Level *</label>
+            <input
+              id="openingReorderLevel"
+              class="form-input"
+              type="number"
+              name="openingReorderLevel"
+              [(ngModel)]="openingReorderLevel"
+              min="0"
+              step="1"
+              required
+              [disabled]="savingStock"
+            />
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label" for="openingReason">Reason / Note *</label>
+            <textarea
+              id="openingReason"
+              class="form-input"
+              name="openingReason"
+              [(ngModel)]="openingReason"
+              rows="3"
+              maxlength="300"
+              required
+              [disabled]="savingStock"
+              placeholder="e.g. Initial stock entry"
+            ></textarea>
+          </div>
+
+          <div class="flex justify-end gap-3">
+            <button
+              class="btn-secondary"
+              type="button"
+              (click)="showOpeningStockForm = false"
+              [disabled]="savingStock"
+            >
+              Cancel
+            </button>
+
+            <button
+              class="btn-primary"
+              type="submit"
+              [disabled]="
+                savingStock ||
+                openingForm.invalid ||
+                !Number.isInteger(openingQuantity) ||
+                openingQuantity < 1 ||
+                openingUnitCost === null ||
+                !Number.isFinite(openingUnitCost) ||
+                openingUnitCost < 0 ||
+                !Number.isInteger(openingReorderLevel) ||
+                openingReorderLevel < 0 ||
+                !openingReason.trim() ||
+                productsWithoutInventory.length === 0
+              "
+            >
+              {{ savingStock ? 'Saving...' : 'Create Opening Stock' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- Stock Adjustment Modal -->
   @if (showStockForm && selectedItem) {
     <div
       class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4"
@@ -176,6 +388,7 @@
             class="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-100"
             type="button"
             (click)="closeStockForm()"
+            [disabled]="savingStock"
             aria-label="Close stock form"
           >
             ✕
@@ -183,15 +396,13 @@
         </div>
 
         <div class="mb-5 rounded-lg bg-slate-50 p-4">
-          <p class="text-sm text-slate-500">Current available stock</p>
+          <p class="text-sm text-slate-500">Current Available Stock</p>
           <p class="mt-1 text-2xl font-bold text-slate-800">{{ selectedItem.quantity }} units</p>
         </div>
 
-        <form (ngSubmit)="updateStock()">
+        <form #stockForm="ngForm" (ngSubmit)="updateStock()">
           <div class="mb-4">
-            <label class="form-label" for="stockQuantity">
-              Quantity to {{ stockAction === 'Add' ? 'Add' : 'Remove' }} *
-            </label>
+            <label class="form-label" for="stockQuantity"> Quantity to {{ stockAction }} * </label>
             <input
               id="stockQuantity"
               class="form-input"
@@ -201,11 +412,12 @@
               min="1"
               step="1"
               required
+              [disabled]="savingStock"
             />
           </div>
 
           <div class="mb-4">
-            <label class="form-label" for="stockNote">Reason / Note</label>
+            <label class="form-label" for="stockNote">Reason / Note *</label>
             <textarea
               id="stockNote"
               class="form-input"
@@ -213,6 +425,8 @@
               [(ngModel)]="stockNote"
               rows="3"
               maxlength="300"
+              required
+              [disabled]="savingStock"
               placeholder="e.g. New delivery or damaged items"
             ></textarea>
           </div>
@@ -222,22 +436,112 @@
           }
 
           <div class="flex justify-end gap-3">
-            <button class="btn-secondary" type="button" (click)="closeStockForm()">Cancel</button>
+            <button
+              class="btn-secondary"
+              type="button"
+              (click)="closeStockForm()"
+              [disabled]="savingStock"
+            >
+              Cancel
+            </button>
 
             <button
               class="btn-primary"
               type="submit"
               [disabled]="
-                !stockQuantity ||
-                stockQuantity < 1 ||
-                stockQuantity % 1 !== 0 ||
+                savingStock ||
+                stockForm.invalid ||
+                !Number.isInteger(stockQuantity) ||
+                stockQuantity <= 0 ||
+                !stockNote.trim() ||
                 (stockAction === 'Remove' && stockQuantity > selectedItem.quantity)
               "
             >
-              Confirm {{ stockAction }}
+              {{ savingStock ? 'Saving...' : 'Confirm ' + stockAction }}
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  }
+
+  <!-- Stock Movement History Modal -->
+  @if (showMovementsModal) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4"
+    >
+      <div class="my-auto w-full max-w-5xl rounded-xl bg-white p-6 shadow-xl">
+        <div class="mb-6 flex items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-bold text-slate-800">Stock Movement History</h2>
+            <p class="mt-1 text-sm text-slate-500">{{ movementProductName }}</p>
+          </div>
+
+          <button
+            class="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-100"
+            type="button"
+            (click)="closeMovements()"
+            aria-label="Close movement history"
+          >
+            ✕
+          </button>
+        </div>
+
+        @if (loadingMovements) {
+          <p class="py-8 text-center text-slate-500">Loading stock movement history...</p>
+        } @else if (movementErrorMessage) {
+          <div class="rounded-lg bg-red-50 p-4 text-red-700" role="alert">
+            {{ movementErrorMessage }}
+            <button
+              class="btn-secondary ml-2"
+              type="button"
+              (click)="retryMovements()"
+              [disabled]="loadingMovements"
+            >
+              {{ loadingMovements ? 'Retrying...' : 'Retry' }}
+            </button>
+          </div>
+        } @else {
+          <div class="table-container">
+            <table class="app-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Movement</th>
+                  <th>Quantity Changed</th>
+                  <th>Previous Stock</th>
+                  <th>New Stock</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                @for (movement of stockMovements; track movement.id) {
+                  <tr>
+                    <td>
+                      {{ movement.createdOn | date: 'medium' }}
+                    </td>
+                    <td>{{ movement.movementType }}</td>
+                    <td>{{ movement.quantity }}</td>
+                    <td>{{ movement.quantityBefore }}</td>
+                    <td>{{ movement.quantityAfter }}</td>
+                    <td>{{ movement.reason }}</td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="6" class="py-8 text-center text-slate-500">
+                      No stock movements have been recorded for this product.
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+
+        <div class="mt-5 flex justify-end">
+          <button class="btn-secondary" type="button" (click)="closeMovements()">Close</button>
+        </div>
       </div>
     </div>
   }

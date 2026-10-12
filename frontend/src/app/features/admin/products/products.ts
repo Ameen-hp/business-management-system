@@ -1,17 +1,11 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DecimalPipe } from '@angular/common';
-type ProductStatus = 'Active' | 'Inactive';
 
-interface Product {
-  id: number;
-  name: string;
-  sku: string;
-  category: string;
-  price: number;
-  description: string;
-  status: ProductStatus;
-}
+import { ApiService } from '../../../core/guards/interceptors/services/api.service';
+import { ProductRequest, ProductResponse } from '../../../shared/models/product.model';
+
+type ProductStatus = 'Active' | 'Inactive';
 
 @Component({
   selector: 'app-products',
@@ -20,53 +14,20 @@ interface Product {
   templateUrl: './products.html',
   styleUrl: './products.css',
 })
-export class ProductsComponent {
+export class ProductsComponent implements OnInit {
+  private apiService = inject(ApiService);
+
   searchTerm = '';
   categoryFilter = 'All';
   statusFilter = 'All';
   showForm = false;
   editingId: number | null = null;
+  loading = false;
+  saving = false;
 
   categories = ['Electronics', 'Clothing', 'Office Supplies', 'Home Appliances'];
 
-  products: Product[] = [
-    {
-      id: 1,
-      name: 'Wireless Mouse',
-      sku: 'ELE-001',
-      category: 'Electronics',
-      price: 1500,
-      description: 'Wireless computer mouse',
-      status: 'Active',
-    },
-    {
-      id: 2,
-      name: 'USB Keyboard',
-      sku: 'ELE-002',
-      category: 'Electronics',
-      price: 2500,
-      description: 'USB keyboard for computers',
-      status: 'Active',
-    },
-    {
-      id: 3,
-      name: 'Office Notebook',
-      sku: 'OFF-001',
-      category: 'Office Supplies',
-      price: 350,
-      description: 'A4 ruled notebook',
-      status: 'Active',
-    },
-    {
-      id: 4,
-      name: 'Cotton T-Shirt',
-      sku: 'CLO-001',
-      category: 'Clothing',
-      price: 1200,
-      description: 'Casual cotton T-shirt',
-      status: 'Inactive',
-    },
-  ];
+  products: ProductResponse[] = [];
 
   form = {
     name: '',
@@ -76,7 +37,28 @@ export class ProductsComponent {
     description: '',
   };
 
-  get filteredProducts(): Product[] {
+  ngOnInit(): void {
+    this.loadProducts();
+  }
+
+  // Load products from backend
+  loadProducts(): void {
+    this.loading = true;
+
+    this.apiService.getAllProducts().subscribe({
+      next: (response) => {
+        this.products = response;
+        this.loading = false;
+      },
+      error: (error) => {
+        console.error('Error loading products:', error);
+        this.loading = false;
+        alert('Unable to load products. Please check the backend connection.');
+      },
+    });
+  }
+
+  get filteredProducts(): ProductResponse[] {
     const term = this.searchTerm.trim().toLowerCase();
 
     return this.products.filter((product) => {
@@ -103,27 +85,32 @@ export class ProductsComponent {
   }
 
   get totalProductValue(): number {
-    return this.products.reduce((total, product) => total + product.price, 0);
+    return this.products.reduce((total, product) => total + Number(product.price), 0);
   }
 
+  // Open create form
   openCreateForm(): void {
     this.editingId = null;
     this.resetForm();
     this.showForm = true;
   }
 
-  openEditForm(product: Product): void {
+  // Open edit form
+  openEditForm(product: ProductResponse): void {
     this.editingId = product.id;
+
     this.form = {
       name: product.name,
       sku: product.sku,
       category: product.category,
-      price: product.price,
-      description: product.description,
+      price: Number(product.price),
+      description: product.description ?? '',
     };
+
     this.showForm = true;
   }
 
+  // Create or update product
   saveProduct(): void {
     const name = this.form.name.trim();
     const sku = this.form.sku.trim();
@@ -150,33 +137,96 @@ export class ProductsComponent {
       return;
     }
 
-    if (this.editingId !== null) {
-      const product = this.products.find((p) => p.id === this.editingId);
+    const request: ProductRequest = {
+      name,
+      sku,
+      category,
+      price,
+      description,
+    };
 
-      if (product) {
-        product.name = name;
-        product.sku = sku;
-        product.category = category;
-        product.price = price;
-        product.description = description;
-      }
+    this.saving = true;
+
+    if (this.editingId !== null) {
+      this.apiService.updateProduct(this.editingId, request).subscribe({
+        next: (updatedProduct) => {
+          const index = this.products.findIndex((product) => product.id === updatedProduct.id);
+
+          if (index !== -1) {
+            this.products[index] = updatedProduct;
+          } else {
+            this.products.unshift(updatedProduct);
+          }
+
+          this.saving = false;
+          this.closeForm();
+        },
+        error: (error) => {
+          console.error('Error updating product:', error);
+          this.saving = false;
+          alert(
+            error.status === 409
+              ? 'This SKU already exists. Please use a unique SKU.'
+              : 'Unable to update product. Please try again.',
+          );
+        },
+      });
     } else {
-      this.products.unshift({
-        id: Math.max(0, ...this.products.map((p) => p.id)) + 1,
-        name,
-        sku,
-        category,
-        price,
-        description,
-        status: 'Active',
+      this.apiService.createProduct(request).subscribe({
+        next: (createdProduct) => {
+          this.products.unshift(createdProduct);
+          this.saving = false;
+          this.closeForm();
+        },
+        error: (error) => {
+          console.error('Error creating product:', error);
+          this.saving = false;
+          alert(
+            error.status === 409
+              ? 'This SKU already exists. Please use a unique SKU.'
+              : 'Unable to create product. Please try again.',
+          );
+        },
       });
     }
-
-    this.closeForm();
   }
 
-  toggleStatus(product: Product): void {
-    product.status = product.status === 'Active' ? 'Inactive' : 'Active';
+  // Activate or deactivate product
+  toggleStatus(product: ProductResponse): void {
+    const newStatus: ProductStatus = product.status === 'Active' ? 'Inactive' : 'Active';
+
+    this.apiService.updateProductStatus(product.id, newStatus).subscribe({
+      next: (updatedProduct) => {
+        const index = this.products.findIndex((item) => item.id === updatedProduct.id);
+
+        if (index !== -1) {
+          this.products[index] = updatedProduct;
+        }
+      },
+      error: (error) => {
+        console.error('Error updating product status:', error);
+        alert('Unable to update product status. Please try again.');
+      },
+    });
+  }
+
+  // Delete product through API, if needed
+  deleteProduct(product: ProductResponse): void {
+    const confirmed = confirm(`Are you sure you want to delete "${product.name}"?`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    this.apiService.deleteProduct(product.id).subscribe({
+      next: () => {
+        this.products = this.products.filter((item) => item.id !== product.id);
+      },
+      error: (error) => {
+        console.error('Error deleting product:', error);
+        alert('Unable to delete product. Please try again.');
+      },
+    });
   }
 
   closeForm(): void {
