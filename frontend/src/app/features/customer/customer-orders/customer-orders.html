@@ -1,0 +1,65 @@
+<div class="space-y-6">
+  <div class="flex items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">My Orders</h1>
+      <p class="mt-1 text-sm text-gray-500">Track your purchases.</p>
+    </div>
+    <a routerLink="/customer/catalog" class="rounded-lg bg-indigo-600 px-4 py-3 text-white">
+      Shop Products
+    </a>
+  </div>
+
+  <p *ngIf="success" class="rounded-lg bg-green-50 p-3 text-green-700">
+    {{ success }}
+  </p>
+  <p *ngIf="error" class="rounded-lg bg-red-50 p-3 text-red-700">
+    {{ error }}
+  </p>
+  <p *ngIf="loading" class="py-6 text-center text-gray-500">Loading orders...</p>
+
+  <div
+    *ngIf="!loading && orders.length === 0"
+    class="rounded-xl border bg-white p-8 text-center text-gray-500"
+  >
+    You have not placed any orders yet.
+  </div>
+
+  <div
+    *ngFor="let order of orders"
+    class="overflow-hidden rounded-xl border border-gray-200 bg-white"
+  >
+    <div
+      class="flex flex-col gap-3 border-b bg-gray-50 p-5 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div>
+        <p class="font-semibold text-gray-900">{{ order.orderNumber }}</p>
+        <p class="mt-1 text-sm text-gray-500">
+          {{ order.orderDate | date: 'medium' }}
+        </p>
+      </div>
+      <span class="w-fit rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700">
+        {{ order.status }}
+      </span>
+    </div>
+
+    <div class="space-y-3 p-5">
+      <div *ngFor="let item of order.items" class="flex justify-between gap-4 text-sm">
+        <div>
+          <p class="font-medium">{{ item.productName }}</p>
+          <p class="text-gray-500">
+            {{ item.quantity }} ×
+            {{ item.unitPrice | currency: 'PKR' : 'symbol' : '1.2-2' }}
+          </p>
+        </div>
+        <p class="font-medium">
+          {{ item.lineTotal | currency: 'PKR' : 'symbol' : '1.2-2' }}
+        </p>
+      </div>
+
+      <div class="flex justify-between border-t pt-4 font-bold">
+        <span>Order Total</span>
+        <span>{{ order.totalAmount | currency: 'PKR' : 'symbol' : '1.2-2' }}</span>
+      </div>
+    </div>
+  </div>
+</div>

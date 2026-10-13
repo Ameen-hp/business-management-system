@@ -1,0 +1,49 @@
+<div class="space-y-6">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-900">My Invoices</h1>
+    <p class="mt-1 text-sm text-gray-500">
+      View order summaries while invoice management is being implemented.
+    </p>
+  </div>
+
+  <p *ngIf="error" class="rounded-lg bg-red-50 p-3 text-red-700">
+    {{ error }}
+  </p>
+  <p *ngIf="loading" class="py-6 text-center text-gray-500">Loading records...</p>
+
+  <div
+    *ngIf="!loading && orders.length === 0"
+    class="rounded-xl border bg-white p-8 text-center text-gray-500"
+  >
+    No order records found.
+  </div>
+
+  <div *ngIf="!loading && orders.length > 0" class="overflow-x-auto rounded-xl border bg-white">
+    <table class="w-full text-left text-sm">
+      <thead class="bg-gray-50 text-gray-600">
+        <tr>
+          <th class="p-4">Order Number</th>
+          <th class="p-4">Date</th>
+          <th class="p-4">Total</th>
+          <th class="p-4">Status</th>
+          <th class="p-4">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let order of orders" class="border-t">
+          <td class="p-4 font-medium">{{ order.orderNumber }}</td>
+          <td class="p-4">{{ order.orderDate | date: 'mediumDate' }}</td>
+          <td class="p-4">
+            {{ order.totalAmount | currency: 'PKR' : 'symbol' : '1.2-2' }}
+          </td>
+          <td class="p-4">{{ order.status }}</td>
+          <td class="p-4">
+            <button (click)="printOrder(order)" class="font-medium text-indigo-600 hover:underline">
+              Print Summary
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

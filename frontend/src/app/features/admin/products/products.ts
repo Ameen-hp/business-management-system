@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DecimalPipe } from '@angular/common';
 
@@ -24,7 +24,7 @@ export class ProductsComponent implements OnInit {
   editingId: number | null = null;
   loading = false;
   saving = false;
-
+  private cdr = inject(ChangeDetectorRef);
   categories = ['Electronics', 'Clothing', 'Office Supplies', 'Home Appliances'];
 
   products: ProductResponse[] = [];
@@ -42,17 +42,28 @@ export class ProductsComponent implements OnInit {
   }
 
   // Load products from backend
+
+  // Load products from backend
   loadProducts(): void {
     this.loading = true;
+    this.cdr.markForCheck();
 
     this.apiService.getAllProducts().subscribe({
       next: (response) => {
-        this.products = response;
+        console.log('Products received from backend:', response);
+
+        this.products = Array.isArray(response) ? [...response] : [];
+
         this.loading = false;
+        this.cdr.markForCheck();
       },
       error: (error) => {
         console.error('Error loading products:', error);
+
+        this.products = [];
         this.loading = false;
+        this.cdr.markForCheck();
+
         alert('Unable to load products. Please check the backend connection.');
       },
     });

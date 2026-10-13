@@ -6,6 +6,12 @@ import { environment } from '../../../../enviroment';
 import { CustomerRequest, CustomerResponse } from '../../../../shared/models/customer.model';
 import { ProductRequest, ProductResponse } from '../../../../shared/models/product.model';
 import {
+  OrderRequest,
+  OrderResponse,
+  OrderStatus,
+  UpdateOrderStatusRequest,
+} from '../../../../shared/models/order.model';
+import {
   InventoryResponse,
   OpeningStockRequest,
   StockAdjustmentRequest,
@@ -25,6 +31,7 @@ export class ApiService {
   private customerUrl = `${environment.apiUrl}/customers`;
   private productUrl = `${environment.apiUrl}/products`;
   private inventoryUrl = `${environment.apiUrl}/inventory`;
+  private orderUrl = `${environment.apiUrl}/orders`;
 
   // ==================== CUSTOMER METHODS ====================
 
@@ -129,5 +136,34 @@ export class ApiService {
   // Get stock movement history for a product
   getStockMovements(productId: number): Observable<StockMovementResponse[]> {
     return this.http.get<StockMovementResponse[]>(`${this.inventoryUrl}/${productId}/movements`);
+  }
+
+  // ==================== ORDER METHODS ====================
+
+  // Create a new order
+  createOrder(request: OrderRequest): Observable<OrderResponse> {
+    return this.http.post<OrderResponse>(this.orderUrl, request);
+  }
+
+  // Get all orders
+  getAllOrders(): Observable<OrderResponse[]> {
+    return this.http.get<OrderResponse[]>(this.orderUrl);
+  }
+
+  // Get order by ID
+  getOrderById(id: number): Observable<OrderResponse> {
+    return this.http.get<OrderResponse>(`${this.orderUrl}/${id}`);
+  }
+
+  // Get all orders for a specific customer
+  getCustomerOrders(customerId: number): Observable<OrderResponse[]> {
+    return this.http.get<OrderResponse[]>(`${this.orderUrl}/customer/${customerId}`);
+  }
+
+  // Update an order's status
+  updateOrderStatus(id: number, status: OrderStatus): Observable<OrderResponse> {
+    const request: UpdateOrderStatusRequest = { status };
+
+    return this.http.patch<OrderResponse>(`${this.orderUrl}/${id}/status`, request);
   }
 }

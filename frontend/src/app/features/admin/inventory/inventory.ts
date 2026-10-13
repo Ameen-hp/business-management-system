@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, inject } from '@angular/core';
 import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -62,34 +62,43 @@ export class InventoryComponent implements OnInit {
   movementProductName = '';
   movementProductId: number | null = null;
 
+  private cdr = inject(ChangeDetectorRef);
+
   ngOnInit(): void {
     this.loadInventory();
     this.loadProducts();
   }
 
   // 1. Get all inventory records
+  // 1. Get all inventory records
   loadInventory(): void {
     this.loading = true;
     this.errorMessage = '';
+    this.cdr.markForCheck();
 
     this.apiService.getAllInventory().subscribe({
       next: (response) => {
-        this.inventory = Array.isArray(response) ? response : [];
-        console.log('inventory laoded ', this.inventory);
+        console.log('Inventory received from backend:', response);
+
+        this.inventory = Array.isArray(response) ? [...response] : [];
+
         this.loading = false;
+        this.cdr.markForCheck();
       },
       error: (error) => {
         console.error('Failed to load inventory:', error);
+
         this.errorMessage = 'Unable to load inventory. Please try again.';
         this.loading = false;
+        this.cdr.markForCheck();
       },
     });
   }
-
   // Load products so the admin can create opening stock
   loadProducts(): void {
     this.loadingProducts = true;
     this.productErrorMessage = '';
+    this.cdr.markForCheck();
 
     this.apiService.getAllProducts().subscribe({
       next: (response) => {
@@ -321,23 +330,15 @@ export class InventoryComponent implements OnInit {
 
     this.apiService.adjustStock(item.productId, request).subscribe({
       next: () => {
+        // Close the popup and reset the selected item.
         this.showStockForm = false;
         this.selectedItemId = null;
+        this.stockQuantity = 1;
+        this.stockNote = '';
+        this.savingStock = false;
 
-        // Use the specific-inventory endpoint to get the latest server data.
-        this.apiService.getInventoryByProductId(item.productId).subscribe({
-          next: (updatedItem) => {
-            this.inventory = this.inventory.map((stockItem) =>
-              stockItem.productId === item.productId ? updatedItem : stockItem,
-            );
-            this.savingStock = false;
-          },
-          error: (error) => {
-            console.error('Failed to refresh adjusted stock:', error);
-            this.savingStock = false;
-            this.loadInventory();
-          },
-        });
+        // Reload the complete inventory from the backend.
+        this.loadInventory();
       },
       error: (error) => {
         console.error('Failed to adjust stock:', error);
@@ -368,6 +369,7 @@ export class InventoryComponent implements OnInit {
   }
 
   // 5. Get and display stock movement history
+
   openMovements(item: InventoryResponse): void {
     this.movementProductId = item.productId;
     this.movementProductName = item.productName;
@@ -376,15 +378,24 @@ export class InventoryComponent implements OnInit {
     this.loadingMovements = true;
     this.showMovementsModal = true;
 
+    this.cdr.markForCheck();
+
     this.apiService.getStockMovements(item.productId).subscribe({
       next: (response) => {
-        this.stockMovements = Array.isArray(response) ? response : [];
+        console.log('Stock movements received:', response);
+
+        this.stockMovements = Array.isArray(response) ? [...response] : [];
         this.loadingMovements = false;
+
+        this.cdr.markForCheck();
       },
       error: (error) => {
         console.error('Failed to load stock movements:', error);
-        this.movementErrorMessage = 'Unable to load stock movement history.';
+
+        this.movementErrorMessage = 'Unable to load stock movement history. Please try again.';
         this.loadingMovements = false;
+
+        this.cdr.markForCheck();
       },
     });
   }
