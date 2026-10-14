@@ -30,21 +30,35 @@ export class CustomerOrdersComponent implements OnInit {
   }
 
   loadOrders(): void {
-    const customerId = Number(sessionStorage.getItem('customerId'));
+    this.loading = true;
+    this.error = '';
 
-    if (!customerId) {
-      this.error = 'Customer information is missing. Please sign in.';
+    const storedCustomerId = sessionStorage.getItem('customerId');
+    const customerId = Number(storedCustomerId);
+
+    console.log('Stored customer ID:', storedCustomerId);
+    console.log('Parsed customer ID:', customerId);
+
+    if (!storedCustomerId || !Number.isInteger(customerId) || customerId <= 0) {
+      this.error = 'Customer information is missing or invalid. Please sign in.';
+      this.loading = false;
       return;
     }
 
-    this.loading = true;
-
     this.api.getCustomerOrders(customerId).subscribe({
       next: (data: OrderResponse[]) => {
+        console.log('Customer orders API response:', data);
+
         this.orders = Array.isArray(data) ? data : [];
+
+        console.log('Orders assigned to template:', this.orders);
+        console.log('Number of orders:', this.orders.length);
+
         this.loading = false;
       },
-      error: () => {
+      error: (err) => {
+        console.error('Failed to load customer orders:', err);
+
         this.error = 'Unable to load your orders.';
         this.loading = false;
       },

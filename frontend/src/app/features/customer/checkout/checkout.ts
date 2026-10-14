@@ -53,6 +53,8 @@ export class CheckoutComponent {
 
     this.loading = true;
 
+    console.log('sending the order to backend ', request);
+
     this.api.createOrder(request).subscribe({
       next: (order: OrderResponse) => {
         this.cart.clear();

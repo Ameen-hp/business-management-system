@@ -13,6 +13,39 @@ import java.time.LocalDateTime;
 @Setter
 public class StockMovementEntity {
 
+    
+
+	@Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "product_id", nullable = false)
+    private ProductEntity product;
+
+    @Column(name = "movement_type", nullable = false, length = 20)
+    private String movementType; // OPENING, ADD, REMOVE, SALE, RETURN
+
+    @Column(nullable = false)
+    private Integer quantity;
+
+    @Column(name = "quantity_before", nullable = false)
+    private Integer quantityBefore;
+
+    @Column(name = "quantity_after", nullable = false)
+    private Integer quantityAfter;
+
+    @Column(nullable = false, length = 500)
+    private String reason;
+
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdOn;
+
+    @PrePersist
+    protected void onCreate() {
+        createdOn = LocalDateTime.now();
+    }
+    
     public Long getId() {
 		return id;
 	}
@@ -76,35 +109,4 @@ public class StockMovementEntity {
 	public void setCreatedOn(LocalDateTime createdOn) {
 		this.createdOn = createdOn;
 	}
-
-	@Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "product_id", nullable = false)
-    private ProductEntity product;
-
-    @Column(name = "movement_type", nullable = false, length = 20)
-    private String movementType; // OPENING, ADD, REMOVE, SALE, RETURN
-
-    @Column(nullable = false)
-    private Integer quantity;
-
-    @Column(name = "quantity_before", nullable = false)
-    private Integer quantityBefore;
-
-    @Column(name = "quantity_after", nullable = false)
-    private Integer quantityAfter;
-
-    @Column(nullable = false, length = 500)
-    private String reason;
-
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdOn;
-
-    @PrePersist
-    protected void onCreate() {
-        createdOn = LocalDateTime.now();
-    }
 }

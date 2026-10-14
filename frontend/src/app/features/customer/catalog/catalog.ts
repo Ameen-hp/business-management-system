@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -29,7 +29,7 @@ interface Inventory {
 export class CatalogComponent implements OnInit {
   private api = inject(ApiService);
   private cart = inject(CartService);
-
+  private cdr = inject(ChangeDetectorRef);
   products: Product[] = [];
   stock = new Map<number, number>();
   search = '';
@@ -51,7 +51,11 @@ export class CatalogComponent implements OnInit {
         this.products = (Array.isArray(data) ? data : []).filter(
           (p) => p.status?.toLowerCase() === 'active',
         );
+
         this.loading = false;
+
+        this.cdr.detectChanges();
+
         this.loadInventory();
       },
       error: () => {
@@ -64,13 +68,20 @@ export class CatalogComponent implements OnInit {
   private loadInventory(): void {
     this.api.getAllInventory().subscribe({
       next: (data: Inventory[]) => {
+        console.log('Inventory response:', data);
+
         this.stock.clear();
+
         (Array.isArray(data) ? data : []).forEach((item) => {
           this.stock.set(item.productId, item.quantity);
         });
+
+        this.cdr.detectChanges();
       },
-      error: () => {
+      error: (err) => {
+        console.error('Unable to load inventory:', err);
         this.error = 'Unable to load stock availability.';
+        this.cdr.detectChanges();
       },
     });
   }
@@ -82,7 +93,7 @@ export class CatalogComponent implements OnInit {
   get filteredProducts(): Product[] {
     const query = this.search.trim().toLowerCase();
 
-    return this.products.filter((p) => {
+    const filtered = this.products.filter((p) => {
       const matchesSearch =
         !query ||
         p.name?.toLowerCase().includes(query) ||
@@ -93,6 +104,8 @@ export class CatalogComponent implements OnInit {
 
       return matchesSearch && matchesCategory;
     });
+
+    return filtered;
   }
 
   getStock(productId: number): number {

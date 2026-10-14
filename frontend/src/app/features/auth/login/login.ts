@@ -42,10 +42,10 @@ export class Login {
     }
 
     // Temporary dummy Customer login
-    if (loginId === 'customer@test.com' && password === 'Customer@123') {
-      sessionStorage.setItem('userId', '5');
-      sessionStorage.setItem('customerId', '5');
-      sessionStorage.setItem('fullName', 'Test Customer');
+    if (loginId === 'muhammad@gmail.com' && password === 'muhammad123') {
+      sessionStorage.setItem('userId', '3');
+      sessionStorage.setItem('customerId', '3');
+      sessionStorage.setItem('fullName', 'Muhammad');
       sessionStorage.setItem('role', 'CUSTOMER');
       sessionStorage.setItem('accessToken', 'dummy-test-token');
 
